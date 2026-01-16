@@ -8,10 +8,12 @@ This project implements an intelligent chatbot POC (Proof of Concept) for **Puls
 
 ### Features
 
-- **RAG System**: LangChain + Mistral + FAISS integration
-- **REST API**: FastAPI endpoints for question-answering
-- **Hybrid Search**: Vector search + BM25 for optimal retrieval
-- **Automated Evaluation**: RAGAS metrics and LLM-as-Judge
+- **Three RAG Flavors**: Basic, Hybrid (FAISS + BM25), and Advanced (Query Analysis + HyDE + Reranking)
+- **LLM Integration**: Mistral API for embeddings and generation
+- **Vector Store**: FAISS for efficient similarity search
+- **Smart Query Handling**: Off-topic detection and query reformulation
+- **REST API**: FastAPI endpoints (coming soon)
+- **Automated Evaluation**: RAGAS metrics and LLM-as-Judge (coming soon)
 
 ### Target Geographic Zone
 
@@ -34,13 +36,36 @@ OC7-RAG/
 └── docs/               # Documentation
 ```
 
+## RAG Implementations
+
+This project implements three progressively sophisticated RAG approaches:
+
+### 1. Basic RAG (Baseline)
+- **Method**: FAISS vector similarity search
+- **Strengths**: Fast, simple, good semantic matching
+- **Best for**: Standard queries with clear intent
+
+### 2. Hybrid RAG
+- **Method**: FAISS (dense) + BM25 (sparse) with Reciprocal Rank Fusion
+- **Strengths**: Combines semantic and keyword matching
+- **Best for**: Keyword-heavy queries (place names, artist names)
+
+### 3. Advanced RAG
+- **Method**: Query Analysis → HyDE → FAISS → FlashRank Reranking
+- **Components**:
+  - Query Analysis: Detects off-topic queries, reformulates questions
+  - HyDE: Generates hypothetical documents for better matching
+  - Reranking: Re-orders top-10 results to get best 5
+- **Best for**: Complex queries, quality over speed
+
+See `notebooks/01_baseline_rag.ipynb` for interactive comparison.
+
 ## Quick Start
 
 ### Prerequisites
 
 - Python >= 3.11
 - Conda
-- UV package manager
 - Mistral API key
 
 ### Installation
@@ -51,30 +76,27 @@ conda create -n OC7 python=3.11
 conda activate OC7
 ```
 
-2. Install UV and dependencies:
+2. Install dependencies:
 ```bash
-pip install uv
-uv sync
+pip install langchain langchain-community langchain-mistralai \
+    faiss-cpu pandas python-dotenv jupyter \
+    rank_bm25 flashrank
 ```
 
 3. Set up environment variables:
 ```bash
 cp .env.example .env
-# Edit .env with your API keys
+# Edit .env with your MISTRAL_API_KEY
 ```
 
-4. Download and index data:
+4. Run the baseline notebook:
 ```bash
-python scripts/download_data.py
-python scripts/build_index.py
+jupyter notebook notebooks/01_baseline_rag.ipynb
 ```
 
-5. Run the API:
-```bash
-uvicorn src.api.main:app --reload
-```
+## API Endpoints (Coming Soon)
 
-## API Endpoints
+The FastAPI implementation is planned for Phase 4:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -83,6 +105,15 @@ uvicorn src.api.main:app --reload
 | `/health` | GET | Health check |
 
 ## Development
+
+### Current Status
+
+**Phase 3 (Core RAG System): ✅ Completed**
+- Three RAG implementations (Basic, Hybrid, Advanced)
+- Interactive notebook with comprehensive testing
+- Performance comparisons and metrics
+
+**Next Phase: FastAPI API Development**
 
 ### Git Workflow
 
@@ -93,15 +124,13 @@ This project uses a version-based branching strategy:
 - `feature/*`: Feature branches (merged into version branches)
 - `hotfix/*`: Critical fixes (from main)
 
-See [MACRO_PLAN.md](Documents%20de%20planification%20et%20cadrage/MACRO_PLAN.md) for detailed guidelines.
-
-### Running Tests
+### Testing (Coming Soon)
 
 ```bash
 pytest tests/
 ```
 
-### Evaluation
+### Evaluation (Coming Soon)
 
 ```bash
 python tests/evaluate_rag.py
@@ -109,17 +138,23 @@ python tests/evaluate_rag.py
 
 ## Tech Stack
 
-- **LLM**: Mistral API
-- **Embeddings**: sentence-transformers / Mistral
-- **Vector Store**: FAISS
-- **Framework**: LangChain
-- **API**: FastAPI
-- **Evaluation**: RAGAS
+| Component | Technology |
+|-----------|------------|
+| **LLM** | Mistral API (mistral-small-latest) |
+| **Embeddings** | Mistral AI (mistral-embed, 1024 dimensions) |
+| **Vector Store** | FAISS (IndexFlatL2) |
+| **Sparse Retrieval** | BM25 (rank_bm25) |
+| **Reranking** | FlashRank (ms-marco-MiniLM-L-12-v2) |
+| **Framework** | LangChain |
+| **Notebooks** | Jupyter |
+| **Data Processing** | Pandas, BeautifulSoup |
+| **API** | FastAPI (planned) |
+| **Evaluation** | RAGAS (planned) |
 
 ## Documentation
 
-- [Macro Plan](Documents%20de%20planification%20et%20cadrage/MACRO_PLAN.md) - Detailed project plan
-- [Technical Report](docs/technical_report.pdf) - Architecture and results (coming soon)
+- Technical implementation in `notebooks/01_baseline_rag.ipynb`
+- [Technical Report](docs/technical_report.pdf) - Coming soon
 
 ## License
 

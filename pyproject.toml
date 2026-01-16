@@ -1,0 +1,52 @@
+[project]
+name = "oc7-rag"
+version = "0.1.0"
+description = "RAG system for cultural events in Savoie, Haute-Savoie, and Isère"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # Core RAG framework
+    "langchain>=0.3",
+    "langchain-mistralai",
+    "langchain-community",
+
+    # Vector store
+    "faiss-cpu",
+
+    # Environment and configuration
+    "python-dotenv",
+
+    # Data processing
+    "pandas",
+    "ijson",  # For streaming large JSON files
+    "beautifulsoup4",  # For HTML cleaning
+    "lxml",  # Parser for BeautifulSoup
+
+    # Notebook support
+    "jupyter",
+    "ipykernel",
+    "ipywidgets",
+
+    # Utilities
+    "tqdm",  # Progress bars
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "black",
+    "ruff",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 100
+target-version = ['py310']
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
