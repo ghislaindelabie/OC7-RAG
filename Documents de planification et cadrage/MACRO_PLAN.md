@@ -368,18 +368,44 @@ dependencies = [
 - [ ] `api_test.py` script
 - [ ] Basic load tests
 
-### Phase 5: Evaluation & Testing (Week 5)
+### Phase 5: Evaluation & Testing (Week 5) - IN PROGRESS
 
 #### 5.1 Test Dataset Creation
-- [ ] 20-30 manually annotated questions
-- [ ] RAGAS synthetic generation (50-100 questions)
-- [ ] Cross-validation manual/synthetic
+- [x] Create CSV file structure: `tests/test_data/test_questions.csv`
+- [x] Define test categories: factual, complex, off_topic, vague
+- [x] 18 initial manually annotated questions
+- [ ] Expand to 50+ questions over time
 
-#### 5.2 Evaluation Pipeline
-- [ ] `evaluate_rag.py` script with RAGAS metrics
-- [ ] LLM-as-Judge for qualitative evaluation
-- [ ] Automated metrics report
-- [ ] Unit tests for indexing
+#### 5.2 LLM-as-Judge Evaluation
+- [x] Design evaluation rubric (PASS/PARTIAL/FAIL)
+- [x] Define semantic equivalence strategy for variable event counts
+- [x] Implement judge using `mistral-large-latest` with CoT
+- [x] Chain-of-Thought reasoning for transparent evaluation
+- [x] Test judge with sample cases
+
+#### 5.3 Evaluation Pipeline (Notebook Cells 24-31)
+- [x] Cell 24: Section header
+- [x] Cell 25: Load test dataset from CSV
+- [x] Cell 26: Evaluation helper functions
+- [x] Cell 27: LLM-as-Judge implementation
+- [x] Cell 28: Automated test runner (all 3 RAG methods)
+- [x] Cell 29: Statistics generation (% PASS/PARTIAL/FAIL)
+- [x] Cell 30: RAGAS metrics (optional)
+- [x] Cell 31: Results export to JSON/CSV
+
+#### 5.4 Evaluation Criteria
+**Event Count Variability Strategy**:
+- PASS: Correct events, even if fewer/more than expected
+- PARTIAL: Some correct but missing key elements or minor errors
+- FAIL: Wrong/fabricated events, incorrect details, irrelevant
+
+#### 5.5 Remaining Tasks
+- [ ] Run full evaluation (set RUN_FULL_EVALUATION = True)
+- [ ] Analyze results and identify improvement opportunities
+- [ ] Expand test dataset to 50+ questions
+- [ ] Implement RAGAS metrics (optional)
+- [ ] Create unit tests for indexing
+- [ ] Document evaluation methodology in technical report
 
 ### Phase 6: Containerization & Documentation (Week 6)
 
