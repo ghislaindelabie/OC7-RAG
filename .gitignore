@@ -73,6 +73,7 @@ venv.bak/
 
 # Conda
 conda-env/
+anaconda_projects/
 
 # UV
 .uv/
@@ -95,6 +96,10 @@ conda-env/
 
 # Claude Code
 .claude/
+.virtual_documents/
+
+# Planning documents (internal)
+Documents de planification et cadrage/
 
 # Data files (large)
 data/raw/*.json
