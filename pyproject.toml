@@ -1,6 +1,6 @@
 [project]
 name = "oc7-rag"
-version = "0.1.0"
+version = "0.2.0"
 description = "RAG system for cultural events in Savoie, Haute-Savoie, and Isère"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -29,6 +29,10 @@ dependencies = [
 
     # Utilities
     "tqdm",  # Progress bars
+
+    # Hybrid RAG components
+    "rank_bm25",  # BM25 sparse retrieval
+    "flashrank",  # Reranking for Advanced RAG
 ]
 
 [project.optional-dependencies]

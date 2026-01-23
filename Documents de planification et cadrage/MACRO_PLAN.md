@@ -289,14 +289,14 @@ Reason step by step before giving your score.
 ### Phase 1: Setup & Exploration (Week 1)
 
 #### 1.1 Environment Configuration
-- [ ] Create conda environment `OC7`
-- [ ] Initialize project with `uv init`
-- [ ] Configure `pyproject.toml` with dependencies
-- [ ] Create `.env` for API keys (Mistral)
-- [ ] Create appropriate `.gitignore`
-- [ ] Initialize Git repository
+- [x] Create conda environment `OC7`
+- [x] Initialize project with `uv init`
+- [x] Configure `pyproject.toml` with dependencies
+- [x] Create `.env` for API keys (Mistral)
+- [x] Create appropriate `.gitignore`
+- [x] Initialize Git repository
 
-**Main dependencies**:
+**Main dependencies** (actual implementation):
 ```toml
 [project]
 dependencies = [
@@ -304,54 +304,56 @@ dependencies = [
     "langchain-community",
     "langchain-mistralai",
     "faiss-cpu",
-    "sentence-transformers",
     "pandas",
-    "fastapi",
-    "uvicorn",
-    "httpx",
     "python-dotenv",
-    "ragas",
-    "pytest",
+    "beautifulsoup4",
+    "lxml",
+    "ijson",
+    "tqdm",
+    "rank_bm25",      # For Hybrid RAG
+    "flashrank",      # For Advanced RAG reranking
 ]
 ```
+Note: `fastapi`, `uvicorn`, `ragas` will be added in Phase 4/5. Using Mistral embeddings instead of sentence-transformers.
 
 #### 1.2 Data Acquisition and Exploration
-- [ ] Download Open Agenda data (JSON filtered for 73/74/38)
-- [ ] Exploration notebook: structure, fields, quality
-- [ ] Statistics: event count, temporal/geographic distribution
-- [ ] Identify useful fields for RAG
+- [x] Download Open Agenda data (JSON filtered for 73/74/38)
+- [x] Exploration notebook: structure, fields, quality
+- [x] Statistics: event count, temporal/geographic distribution
+- [x] Identify useful fields for RAG
 
 ### Phase 2: Preprocessing & Indexing (Week 2)
 
 #### 2.1 Preprocessing Pipeline
-- [ ] Data cleaning script
-- [ ] Handle missing values
-- [ ] Date normalization (filter < 1 year)
-- [ ] Build text for vectorization (title + description + location + date)
+- [x] Data cleaning script (`scripts/filter_data.py`)
+- [x] Handle missing values
+- [x] Date normalization (filter < 1 year)
+- [x] Build text for vectorization (title + description + location + date)
 
 #### 2.2 Chunking and Vectorization
-- [ ] Implement chunking (1 event = 1 chunk with metadata)
-- [ ] Choose embedding model (quick benchmark)
-- [ ] FAISS index creation script
-- [ ] Index save/load functionality
+- [x] Implement chunking (1 event = 1 chunk with metadata)
+- [x] Choose embedding model → Mistral embeddings (mistral-embed, 1024 dim)
+- [x] FAISS index creation script
+- [x] Index save/load functionality
 
-### Phase 3: Core RAG System (Week 3)
+### Phase 3: Core RAG System (Week 3) - ✅ COMPLETED
 
 #### 3.1 Baseline RAG (Naive)
-- [ ] LangChain + FAISS integration
-- [ ] Mistral API configuration
-- [ ] Prompt engineering for cultural event responses
-- [ ] Interactive manual testing
+- [x] LangChain + FAISS integration
+- [x] Mistral API configuration
+- [x] Prompt engineering for cultural event responses
+- [x] Interactive manual testing
 
 #### 3.2 Hybrid RAG (improvement)
-- [ ] Add BM25 retriever
-- [ ] Implement EnsembleRetriever
-- [ ] Comparative tests baseline vs hybrid
+- [x] Add BM25 retriever (rank_bm25)
+- [x] Implement EnsembleRetriever with RRF
+- [x] Comparative tests baseline vs hybrid
 
 #### 3.3 Advanced Experiments (optional)
-- [ ] Query rewriting
-- [ ] Reranking with cross-encoder
-- [ ] Document results
+- [x] Query analysis & off-topic detection
+- [x] HyDE (Hypothetical Document Embeddings)
+- [x] Reranking with FlashRank (ms-marco-MiniLM-L-12-v2)
+- [x] Document results in notebook
 
 ### Phase 4: FastAPI API (Week 4)
 
@@ -368,7 +370,7 @@ dependencies = [
 - [ ] `api_test.py` script
 - [ ] Basic load tests
 
-### Phase 5: Evaluation & Testing (Week 5) - IN PROGRESS
+### Phase 5: Evaluation & Testing (Week 5) - ✅ COMPLETED
 
 #### 5.1 Test Dataset Creation
 - [x] Create CSV file structure: `tests/test_data/test_questions.csv`
@@ -444,10 +446,7 @@ OC7-RAG/
 │   └── index/                    # Saved FAISS index
 │
 ├── notebooks/
-│   ├── 01_data_exploration.ipynb
-│   ├── 02_chunking_experiments.ipynb
-│   ├── 03_rag_prototyping.ipynb
-│   └── 04_evaluation_analysis.ipynb
+│   └── 01_baseline_rag.ipynb    # Complete notebook: data, RAG (3 flavors), evaluation
 │
 ├── src/
 │   ├── __init__.py
@@ -471,7 +470,7 @@ OC7-RAG/
 ├── tests/
 │   ├── __init__.py
 │   ├── test_data/
-│   │   └── test_questions.json   # Annotated test dataset
+│   │   └── test_questions.csv    # Annotated test dataset (18 questions)
 │   ├── test_indexation.py
 │   ├── test_retriever.py
 │   ├── test_api.py
@@ -497,11 +496,11 @@ OC7-RAG/
 | Language | Python 3.11+ |
 | RAG Orchestration | LangChain |
 | LLM | Mistral API (mistral-small or mistral-large) |
-| Embeddings | HuggingFace `sentence-transformers` or Mistral embeddings |
+| Embeddings | Mistral AI Embeddings (`mistral-embed`, 1024 dimensions) |
 | Vector Store | FAISS (faiss-cpu) |
 | Lexical Search | BM25 (rank-bm25 or LangChain BM25Retriever) |
 | API | FastAPI + Uvicorn |
-| Evaluation | RAGAS + pytest |
+| Evaluation | LLM-as-Judge (mistral-large) + RAGAS (optional) |
 | Containerization | Docker |
 | Versioning | Git + GitHub |
 
@@ -520,22 +519,29 @@ OC7-RAG/
 
 ## 7. Success Criteria
 
-- [ ] FAISS index built with > 1000 events from target zone
-- [ ] API responds in < 5 seconds
-- [ ] RAGAS faithfulness score > 0.7
-- [ ] RAGAS answer_relevancy score > 0.7
-- [ ] Test dataset with 50+ annotated questions
-- [ ] Functional Docker container
-- [ ] Complete documentation
+- [x] FAISS index built with > 1000 events from target zone (~8500 events indexed)
+- [ ] API responds in < 5 seconds (Phase 4)
+- [ ] RAGAS faithfulness score > 0.7 (optional)
+- [ ] RAGAS answer_relevancy score > 0.7 (optional)
+- [~] Test dataset with 50+ annotated questions (18 done, 50+ planned)
+- [ ] Functional Docker container (Phase 6)
+- [~] Complete documentation (README done, technical report pending)
 
 ---
 
 ## 8. Immediate Next Steps
 
-1. **Validate this plan** with you
-2. **Configure environment** conda + UV
-3. **Download and explore data** from Open Agenda for the 3 departments
-4. **Verify data volume** available (target > 1000 events)
+**v0.2.0 (Current)** - Evaluation Framework complete
+1. ~~Validate this plan~~ ✅
+2. ~~Configure environment~~ ✅
+3. ~~Download and explore data~~ ✅ (~8500 events)
+4. ~~Implement 3 RAG flavors~~ ✅
+5. ~~Build evaluation framework~~ ✅
+
+**Next: v0.3.0** - API Development
+1. Implement FastAPI endpoints (`/ask`, `/rebuild`, `/health`)
+2. Add API tests
+3. Run full evaluation and document results
 
 ---
 
