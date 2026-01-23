@@ -12,8 +12,9 @@ This project implements an intelligent chatbot POC (Proof of Concept) for **Puls
 - **LLM Integration**: Mistral API for embeddings and generation
 - **Vector Store**: FAISS for efficient similarity search
 - **Smart Query Handling**: Off-topic detection and query reformulation
-- **REST API**: FastAPI endpoints (coming soon)
-- **Automated Evaluation**: RAGAS metrics and LLM-as-Judge (coming soon)
+- **REST API**: FastAPI endpoints (Phase 4 - planned)
+- **Automated Evaluation**: LLM-as-Judge with Chain-of-Thought reasoning ✅
+- **Test Dataset**: 18 annotated questions across 4 categories ✅
 
 ### Target Geographic Zone
 
@@ -113,7 +114,14 @@ The FastAPI implementation is planned for Phase 4:
 - Interactive notebook with comprehensive testing
 - Performance comparisons and metrics
 
-**Next Phase: FastAPI API Development**
+**Phase 5 (Evaluation & Testing): ✅ Completed**
+- Test dataset: 18 annotated questions (factual, complex, off-topic, vague)
+- LLM-as-Judge evaluation with mistral-large and Chain-of-Thought
+- Automated test runner for all 3 RAG methods
+- Statistics generation (PASS/PARTIAL/FAIL breakdown)
+- Results export to CSV/JSON/TXT formats
+
+**Next Phase: FastAPI API Development (Phase 4)**
 
 ### Git Workflow
 
@@ -124,16 +132,26 @@ This project uses a version-based branching strategy:
 - `feature/*`: Feature branches (merged into version branches)
 - `hotfix/*`: Critical fixes (from main)
 
-### Testing (Coming Soon)
+### Evaluation
+
+The evaluation framework is implemented in notebook cells 24-31:
+
+1. **Load test dataset** from `tests/test_data/test_questions.csv`
+2. **Run automated tests** through all 3 RAG methods
+3. **LLM-as-Judge evaluation** with semantic equivalence rubric
+4. **Generate statistics** (% PASS/PARTIAL/FAIL by category and difficulty)
+5. **Export results** to CSV/JSON/TXT
+
+To run the evaluation:
+```bash
+jupyter notebook notebooks/01_baseline_rag.ipynb
+# Execute cells 1-31, set RUN_FULL_EVALUATION = True in cell 28 for full test suite
+```
+
+### Testing (Unit Tests - Planned)
 
 ```bash
 pytest tests/
-```
-
-### Evaluation (Coming Soon)
-
-```bash
-python tests/evaluate_rag.py
 ```
 
 ## Tech Stack
@@ -149,11 +167,44 @@ python tests/evaluate_rag.py
 | **Notebooks** | Jupyter |
 | **Data Processing** | Pandas, BeautifulSoup |
 | **API** | FastAPI (planned) |
-| **Evaluation** | RAGAS (planned) |
+| **Evaluation** | LLM-as-Judge (mistral-large), RAGAS (optional) |
+
+## Evaluation Framework
+
+### Test Dataset
+
+Located in `tests/test_data/test_questions.csv` with 18 annotated questions:
+
+| Category | Count | Description |
+|----------|-------|-------------|
+| **Factual** | 10 | Direct questions about specific events |
+| **Complex** | 3 | Multi-criteria queries (location + type + audience) |
+| **Off-topic** | 3 | Questions unrelated to cultural events |
+| **Vague** | 2 | Incomplete questions requiring clarification |
+
+### LLM-as-Judge Evaluation
+
+**Model**: mistral-large-latest with Chain-of-Thought reasoning
+
+**Rubric** (Semantic Equivalence):
+- **PASS**: Correct events with accurate information (dates, locations, types)
+- **PARTIAL**: Some correct but missing key elements or minor inaccuracies
+- **FAIL**: Wrong/fabricated events, incorrect details, or irrelevant responses
+
+**Key Principle**: Focus on factual correctness, not completeness. An answer with fewer events that are all correct receives PASS, not PARTIAL.
+
+### Evaluation Results
+
+Run `notebooks/01_baseline_rag.ipynb` cells 24-31 to:
+- Execute all 18 test questions through 3 RAG methods
+- Generate automated verdicts with LLM judge
+- View statistics breakdown by category and difficulty
+- Export results to `evaluation_results/` directory
 
 ## Documentation
 
 - Technical implementation in `notebooks/01_baseline_rag.ipynb`
+- Evaluation framework: notebook cells 24-31
 - [Technical Report](docs/technical_report.pdf) - Coming soon
 
 ## License

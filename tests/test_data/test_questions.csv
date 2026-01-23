@@ -1,0 +1,19 @@
+id,question,expected_answer,category,difficulty
+1,"Quels concerts ont lieu à Annecy?","Concerts au château (Musée-Château, mai), événements musicaux au Conservatoire (septembre)",factual,easy
+2,"Y a-t-il des événements pour enfants à Grenoble?","Oui: Décorations de Pâques, ateliers mathématiques, Bal qui ne tourne pas rond, Lumière atelier scientifique",factual,easy
+3,"Quels festivals de musique ont lieu en Savoie?","Festival des Musiques du Chablais, Fête de la Musique, concerts divers",factual,medium
+4,"Y a-t-il des expositions d'art à Chambéry?","Expositions au musée des Beaux-Arts, galeries locales",factual,easy
+5,"Quels spectacles de théâtre sont prévus en Isère?","Spectacles dans les théâtres municipaux, festivals de théâtre",factual,medium
+6,"Quels événements gratuits sont disponibles en Haute-Savoie?","Fête de la Musique, festivals gratuits, événements communaux",factual,easy
+7,"Quelles activités sont prévues ce weekend à Grenoble?","Dépend de la période: concerts, expositions, marchés, événements culturels",factual,medium
+8,"Y a-t-il des concerts de jazz dans la région?","Concerts de jazz dans divers lieux culturels, festivals spécialisés",factual,medium
+9,"Quels événements sont adaptés pour les familles à Annecy?","Ateliers pour enfants, festivals familiaux, événements au château",factual,easy
+10,"Quels marchés et foires ont lieu en Savoie?","Marchés hebdomadaires, foires saisonnières, événements gastronomiques",factual,medium
+11,"Quelles activités culturelles gratuites pour familles avec enfants de moins de 10 ans sont disponibles près d'Annecy?","Ateliers pour enfants gratuits, festivals familiaux, animations jeune public en Haute-Savoie",complex,hard
+12,"Quels événements culturels sont accessibles PMR en Isère?","Événements dans lieux accessibles: musées, théâtres municipaux avec accès handicapé",complex,hard
+13,"Quels festivals d'été en plein air ont lieu en montagne?","Festivals outdoor dans les Alpes, concerts en altitude, événements montagnards",complex,medium
+14,"Comment faire une tarte aux pommes?","[OFF_TOPIC] Cette question ne concerne pas les événements culturels",off_topic,easy
+15,"Quel est le PIB de la France?","[OFF_TOPIC] Cette question ne concerne pas les événements culturels",off_topic,easy
+16,"Quelle est la météo demain à Lyon?","[OFF_TOPIC] Cette question ne concerne pas les événements culturels",off_topic,easy
+17,"événements","[VAGUE] Question trop imprécise - nécessite précision sur type, lieu, période",vague,easy
+18,"ce weekend","[VAGUE] Question incomplète - manque le type d'activité et le lieu recherchés",vague,easy
