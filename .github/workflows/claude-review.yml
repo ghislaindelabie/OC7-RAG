@@ -1,0 +1,57 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - main
+      - 'v*'  # Matches v0.1.0, v0.2.0, v0.3.0, etc.
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  claude-review:
+    runs-on: ubuntu-latest
+    # Skip draft PRs
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Claude Code Review
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+            TARGET BRANCH: ${{ github.base_ref }}
+
+            Please review this pull request for the Puls-Events RAG project.
+            This is a Python project using LangChain, FAISS, and Mistral API.
+
+            Focus your review on:
+            - Code quality and Python best practices (type hints, docstrings where needed)
+            - Potential bugs or logic errors
+            - Security considerations (API key handling, input validation)
+            - RAG-specific concerns (chunking, retrieval, prompt engineering)
+            - Consistency with existing code patterns
+
+            Guidelines:
+            - Be constructive and specific in feedback
+            - Highlight both issues and good practices
+            - Suggest improvements with code examples when helpful
+
+            Use inline comments for specific code issues.
+            Use a summary comment for overall feedback.
+
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*)"
