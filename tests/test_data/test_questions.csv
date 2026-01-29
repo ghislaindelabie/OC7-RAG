@@ -17,3 +17,41 @@ id,question,expected_answer,category,difficulty
 16,"Quelle est la météo demain à Lyon?","[OFF_TOPIC] Cette question ne concerne pas les événements culturels",off_topic,easy
 17,"événements","[VAGUE] Question trop imprécise - nécessite précision sur type, lieu, période",vague,easy
 18,"ce weekend","[VAGUE] Question incomplète - manque le type d'activité et le lieu recherchés",vague,easy
+19,"Quels événements des Journées du Patrimoine ont lieu à Chambéry?","Visites guidées, ouvertures exceptionnelles de monuments, événements au château des Ducs de Savoie",factual,easy
+20,"Y a-t-il des visites guidées à Thonon-les-Bains?","Visites du patrimoine local, découvertes architecturales, événements culturels",factual,easy
+21,"Quels job dating sont organisés en Isère?","Sessions de recrutement France Travail, job dating sectoriels, forums emploi",factual,medium
+22,"Où trouver des ateliers créatifs pour adultes à Grenoble?","Ateliers aux Octopodes, cours créatifs dans centres culturels, workshops artistiques",factual,medium
+23,"Y a-t-il des événements liés à l'industrie en Savoie?","Semaine de l'industrie, visites d'entreprises, forums métiers industriels",factual,medium
+24,"Quelles visites de châteaux sont possibles en Haute-Savoie?","Visites du château d'Annecy, monuments historiques, Journées du Patrimoine",factual,easy
+25,"Quels événements sportifs ont lieu à Albertville?","Événements sportifs, manifestations locales, activités montagne",factual,medium
+26,"Y a-t-il des formations professionnelles à Vienne?","Formations France Travail, ateliers découverte métiers, sessions d'orientation",factual,medium
+27,"Quelles animations ont lieu à Aix-les-Bains?","Événements culturels, visites patrimoine thermal, animations locales",factual,easy
+28,"Quels événements emploi pour jeunes existent en Isère?","Programme 1 jeune 1 solution, job dating jeunes, forums alternance",factual,medium
+29,"Y a-t-il des événements à Bourg-Saint-Maurice?","Événements en Haute Tarentaise, activités montagne, animations locales",factual,easy
+30,"Quelles expositions photographiques sont visibles dans la région?","Expositions photo dans galeries et musées, événements artistiques",factual,medium
+31,"Quels événements ont lieu au Conservatoire de musique d'Annecy?","Concerts, auditions élèves, événements musicaux pédagogiques",factual,easy
+32,"Y a-t-il des événements de recrutement dans l'hôtellerie-restauration?","Job dating hôtellerie, forums métiers restauration, sessions France Travail sectorielles",factual,medium
+33,"Quels événements patrimoniaux sont organisés en septembre?","Journées européennes du patrimoine, visites exceptionnelles, ouvertures monuments",factual,easy
+34,"Y a-t-il des ateliers scientifiques pour enfants?","Ateliers Lumière, expériences scientifiques, animations pédagogiques",factual,easy
+35,"Quels événements culturels ont lieu à Saint-Martin-d'Hères?","Événements universitaires, animations culturelles, spectacles locaux",factual,medium
+36,"Où trouver des événements liés au développement durable?","Événements écologiques, salons bio, manifestations environnementales",factual,medium
+37,"Quels événements emploi acceptent les débutants sans diplôme?","Recrutements ouverts aux débutants, formations financées, job dating sans expérience requise",complex,medium
+38,"Où trouver des événements culturels gratuits et accessibles PMR à Grenoble?","Événements gratuits dans lieux accessibles: musées, médiathèques, centres culturels",complex,hard
+39,"Quels événements combinent découverte métier et formation en Savoie?","Ateliers découverte avec formation, sessions orientation-formation, forums métiers qualifiants",complex,hard
+40,"Y a-t-il des visites guidées gratuites pendant les Journées du Patrimoine en Isère?","Visites gratuites monuments, ouvertures exceptionnelles, parcours découverte patrimoine",complex,medium
+41,"Quels événements pour familles sont accessibles en transports en commun depuis Annecy?","Événements familiaux centre-ville Annecy, activités accessibles TAG, animations urbaines",complex,hard
+42,"Où trouver des job dating avec embauche en CDI dans la région?","Sessions recrutement CDI France Travail, forums emploi durable, job dating contrats longs",complex,medium
+43,"Quels événements culturels d'été sont adaptés aux personnes âgées?","Visites patrimoine adaptées, concerts accessibles, événements calmes en journée",complex,hard
+44,"Y a-t-il des événements nocturnes pendant les Journées du Patrimoine?","Nocturnes patrimoine, visites en soirée, événements illuminés",complex,medium
+45,"Quel est le meilleur restaurant à Annecy?","[OFF_TOPIC] Cette question concerne la restauration, pas les événements",off_topic,easy
+46,"Comment réserver un hôtel à Chambéry?","[OFF_TOPIC] Cette question concerne l'hébergement, pas les événements",off_topic,easy
+47,"Où acheter des skis en Haute-Savoie?","[OFF_TOPIC] Cette question concerne le commerce, pas les événements",off_topic,easy
+48,"Quel est le prix de l'immobilier à Grenoble?","[OFF_TOPIC] Cette question concerne l'immobilier, pas les événements",off_topic,easy
+49,"culture","[VAGUE] Terme trop général - préciser type d'événement, lieu, date",vague,easy
+50,"Savoie","[VAGUE] Nom de lieu seul - préciser ce qui est recherché",vague,easy
+51,"activités enfants","[VAGUE] Question partielle - préciser lieu et période souhaitée",vague,easy
+52,"emploi","[VAGUE] Terme trop large - préciser secteur, lieu, type de contrat recherché",vague,easy
+53,"Quels concerts ont lieu ce soir à Grenoble?","Concerts programmés aujourd'hui à Grenoble (dépend de la date actuelle)",temporal,medium
+54,"Y a-t-il des événements demain en Savoie?","Événements du lendemain en Savoie (dépend de la date actuelle)",temporal,medium
+55,"Que faire pendant les vacances de février en Haute-Savoie?","Activités vacances d'hiver: ski, animations neige, événements montagne",temporal,medium
+56,"Quels événements du Patrimoine 2024 sont encore accessibles?","Événements patrimoine récents ou à venir selon date actuelle",temporal,hard

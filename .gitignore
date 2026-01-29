@@ -98,6 +98,9 @@ anaconda_projects/
 .claude/
 .virtual_documents/
 
+# Session coordination (local only, not tracked to avoid merge conflicts)
+SESSION-COORDINATION.md
+
 # Planning documents (internal)
 Documents de planification et cadrage/
 
