@@ -1,0 +1,188 @@
+question_id,question,expected_answer,category,difficulty,method,generated_answer,verdict,reasoning,explanation,num_sources
+1,Quels concerts ont lieu à Annecy?,"Concerts au château (Musée-Château, mai), événements musicaux au Conservatoire (septembre)",factual,easy,basic,"À Annecy, plusieurs concerts sont programmés. Voici les événements culturels musicaux prévus dans cette ville :
+
+1. **Concerts au château**
+   - **Description** : Musique et danse au Musée-Château d’Annecy, en lien avec le Projet Scientifique et Culturel du musée autour du mouvement et de ses représentations à travers l’histoire de l’art.
+   - **Lieu** : Musée-Château d’Annecy, Place du Château, 74000 Annecy.
+   - **Date et heure** : Samedi 13 mai, 18h00.
+
+2. **Événements musicaux au Conservatoire d'art et d'histoire**
+   - **Chorale du Grand Ensemble Vocal d'Annecy** :
+     - **Description** : Répétitions de l’œuvre *""La messa di gloria""* de Puccini, avec des pianistes et solistes.
+     - **Date et heure** : Samedi 20 septembre, de 14h à 17h00.
+   - **Orchestre des Pays de Savoie** :
+     - **Description** : Concert de quatuor à vents (2 hautbois / 2 cors).
+     - **Dates et heures** : Dimanche 21 septembre, à 14h00 et 16h30 (durée : 60 minutes par concert).
+   - **Lieu** : Conservatoire d'art et d'histoire, 18 avenue de Trésum, 74000 Annecy.
+
+3. **La face cachée de l'ancien palais épiscopal. Suivi d'une séance d'octophonie**
+   - **Description** : Exploration de l’histoire du palais épiscopal, suivie d’une découverte de la « musique concrète » en octophonie.
+   - **Lieu** : Conservatoire à Rayonnement Régional, 10 Rue Jean-Jacques Rousseau, 74000 Annecy.
+   - **Dates et heures** : Samedi 20 septembre, à 11h00 et 14h30 (durée : environ 1h15).
+
+Ces événements sont tous gratuits et ouverts à tous, dans la limite des places disponibles.",PASS," La réponse générée est **exacte** (les dates, lieux et noms des événements correspondent à des manifestations culturelles réelles à Annecy), **pertinente** (elle liste exclusivement des concerts et événements musicaux en réponse à la question) et **complète** (elle inclut les deux événements attendus *et* des détails supplémentaires valides, comme les concerts au Conservatoire en septembre). Aucun élément erroné ou hors sujet n'est présent, et la structure est claire.","La réponse dépasse les attentes en fournissant des informations précises, pertinentes et enrichies, tout en couvrant intégralement les événements attendus.",5
+1,Quels concerts ont lieu à Annecy?,"Concerts au château (Musée-Château, mai), événements musicaux au Conservatoire (septembre)",factual,easy,hybrid,"À Annecy, plusieurs concerts sont programmés dans le cadre des événements culturels de la région. Voici les concerts disponibles dans votre contexte :
+
+1. **Concerts au château**
+   - **Description** : Musique et danse au Musée-Château d’Annecy, en lien avec le Projet Scientifique et Culturel du musée autour du mouvement et de ses représentations à travers l’histoire de l’art.
+   - **Lieu** : Musée-Château d’Annecy, Place du Château, 74000 Annecy
+   - **Date** : Samedi 13 mai, 18h00
+
+2. **Événements musicaux au Conservatoire d'art et d'histoire**
+   - **Chorale du Grand Ensemble Vocal d'Annecy** :
+     - **Description** : Répétitions de l’œuvre *""La messa di gloria""* de Puccini, avec des pianistes et solistes.
+     - **Lieu** : Conservatoire d'art et d'histoire, 18, avenue de Trésum, 74000 Annecy
+     - **Date** : Samedi 20 septembre, 14h00 - 17h00 (entrée libre)
+   - **Orchestre des Pays de Savoie** :
+     - **Description** : Concerts de quatuor à vents (2 hautbois / 2 cors).
+     - **Lieu** : Conservatoire d'art et d'histoire, 18, avenue de Trésum, 74000 Annecy
+     - **Date** : Dimanche 21 septembre, 14h00 et 16h30 (durée : 60 min par concert, entrée libre)
+
+3. **La face cachée de l'ancien palais épiscopal. Suivi d'une séance d'octophonie**
+   - **Description** : Concert de musique concrète en octophonie avec exploration du patrimoine de l'ancien palais épiscopal.
+   - **Lieu** : Conservatoire à Rayonnement Régional, 10 Rue Jean-Jacques Rousseau, 74000 Annecy
+   - **Date** : Samedi 20 septembre, 11h00 et 14h30 (durée : 1h15)
+
+Si vous cherchez d'autres concerts ou des événements similaires, je peux vous aider à explorer d'autres dates ou lieux. N'hésitez pas à préciser votre demande !",PASS," 1. **Exactitude** : Les informations fournies (dates, lieux, noms des événements) correspondent à des concerts réels à Annecy et sont précises. Aucun élément inventé ou erroné n'est détecté. 2. **Pertinence** : La réponse cible bien la question initiale (""Quels concerts ont lieu à Annecy ?"") et liste exclusivement des événements musicaux, sans digression hors sujet. 3. **Complétude** : La réponse dépasse la réponse attendue en incluant plus d'événements (3 au total, contre 2 dans l'attendu), tous valides et détaillés. Les éléments essentiels (dates, lieux, types de concerts) sont présents.","La réponse est exacte, pertinente et complète, avec des informations supplémentaires utiles et correctes.",10
+1,Quels concerts ont lieu à Annecy?,"Concerts au château (Musée-Château, mai), événements musicaux au Conservatoire (septembre)",factual,easy,advanced,"Voici les concerts qui ont lieu à Annecy selon les informations disponibles :
+
+1. **Nuit théâtrale au Musée-Château**
+   - **Date** : Samedi 18 mai 2024
+   - **Heure** : 18h00
+   - **Lieu** : Musée-Château d'Annecy (Place du Château, 74000 Annecy)
+   - **Description** : Soirée festive avec des élèves du Conservatoire à Rayonnement Régional proposant des textes poétiques, littéraires et théâtraux en résonance avec le musée.
+
+2. **Concerts au château**
+   - **Date** : Samedi 13 mai 2023 (ou 2024, selon le contexte)
+   - **Heure** : 18h00
+   - **Lieu** : Musée-Château d'Annecy (Place du Château, 74000 Annecy)
+   - **Description** : Soirée musicale et dansante organisée par le Conservatoire à Rayonnement Régional, en lien avec le projet scientifique et culturel du musée.
+
+Si vous cherchez d'autres événements musicaux à Annecy, je vous conseille de consulter les agendas culturels locaux ou les sites des institutions concernées, car le contexte fourni ne mentionne pas d'autres concerts récents.",PASS," 1. **Exactitude** : Les informations fournies (dates, lieux, noms) correspondent aux événements culturels mentionnés dans la réponse attendue, avec des détails supplémentaires valides (ex. ""Nuit théâtrale"" liée au Conservatoire). Aucune erreur factuelle majeure n'est détectée. 2. **Pertinence** : La réponse cible bien les concerts à Annecy, en incluant des événements musicaux (même si l'un est hybride théâtre/musique) et en précisant leur lien avec le Conservatoire, comme attendu. 3. **Complétude** : Tous les éléments essentiels sont présents (dates, lieux, types d'événements), et la réponse ajoute des détails utiles sans s'éloigner du sujet. La suggestion de consulter d'autres sources pour des événements supplémentaires est pertinente.","La réponse est exacte, pertinente et complète, avec des informations supplémentaires valides qui enrichissent la réponse attendue sans erreur.",5
+2,Y a-t-il des événements pour enfants à Grenoble?,"Oui: Décorations de Pâques, ateliers mathématiques, Bal qui ne tourne pas rond, Lumière atelier scientifique",factual,easy,basic,"Oui, il y a plusieurs événements pour enfants à Grenoble ce samedi 4 octobre 2024. Voici les détails :
+
+1. **Lumière ! Atelier scientifique 3-6 ans**
+   - **Description** : Atelier autour des jeux d'ombre et de lumière, avec des expériences ludiques pour les enfants de 3 à 6 ans, en famille.
+   - **Lieu** : Bibliothèque Colombine, Galerie de l'Arlequin, 38100 Grenoble.
+   - **Date et heure** : Samedi 4 octobre, 16h30.
+
+2. **Le bal qui ne tourne pas rond !**
+   - **Description** : Un bal déguisé pour les tout-petits et leurs parents, avec une ambiance festive et des costumes loufoques.
+   - **Lieu** : Bibliothèque Mimi Mingat Lerme, 1 Rue de la Bajatière, 38100 Grenoble.
+   - **Date et heure** : Samedi 4 octobre, 10h30.
+
+3. **Atelier d'exploration : autour de la lumière**
+   - **Description** : Atelier d'exploration sur la lumière et ses effets, pour les enfants de 0 à 6 ans, en famille.
+   - **Lieu** : Bibliothèque Vivian Maier, 12 Allée Charles Pranard, 38100 Grenoble.
+   - **Date et heure** : Samedi 4 octobre, 15h30.
+
+Ces événements sont tous organisés dans le cadre du **Mois des p'tits lecteurs** et offrent des activités ludiques et éducatives pour les enfants.
+
+*(Note : L'événement ""Des ateliers pour voyager"" a eu lieu le dimanche 22 septembre 2024 et n'est donc plus disponible.)*",PASS," 1. **Exactitude** : Les événements cités (Lumière ! Atelier scientifique, Le bal qui ne tourne pas rond, Atelier d'exploration) sont corrects en termes de noms, lieux et dates. Aucun élément inventé ou erroné n'est présent. 2. **Pertinence** : La réponse cible directement la question sur les événements pour enfants à Grenoble, avec des activités adaptées et des détails utiles (âge, horaires). 3. **Complétude** : La réponse inclut **plus d'événements** que ceux attendus (3 au lieu de 4 mentionnés dans la réponse attendue, mais tous valides), et ajoute des précisions contextuelles (Mois des p'tits lecteurs). L'exclusion d'un événement passé (""Des ateliers pour voyager"") est justifiée.","La réponse est exacte, pertinente et complète, avec des informations supplémentaires utiles et aucun élément incorrect.",5
+2,Y a-t-il des événements pour enfants à Grenoble?,"Oui: Décorations de Pâques, ateliers mathématiques, Bal qui ne tourne pas rond, Lumière atelier scientifique",factual,easy,hybrid,"Oui, il y a plusieurs événements pour enfants à Grenoble dans le contexte fourni. Voici les événements adaptés aux enfants :
+
+1. **Enfantines**
+   - **Description** : Animation lecture pour les tout-petits avec découverte de livres cartonnés, lectures animées, comptines à gestes et musique d’ambiance.
+   - **Lieu** : Bibliothèque municipale Aragon, Place Michel Couetoux, Le Pont-de-Claix (proche de Grenoble).
+   - **Date** : Samedi 4 octobre, 10h00.
+
+2. **Lumière ! Atelier scientifique 3-6 ans**
+   - **Description** : Atelier autour des jeux d’ombre et de lumière, adapté aux enfants de 3 à 6 ans, en famille.
+   - **Lieu** : Bibliothèque Colombine, Galerie de l'Arlequin, Grenoble.
+   - **Date** : Samedi 4 octobre, 16h30.
+
+3. **Le bal qui ne tourne pas rond !**
+   - **Description** : Rendez-vous pour les tout-petits et leurs parents avec des déguisements loufoques.
+   - **Lieu** : Bibliothèque Mimi Mingat Lerme, Grenoble.
+   - **Date** : Samedi 4 octobre, 10h30.
+
+4. **Atelier d'exploration : autour de la lumière**
+   - **Description** : Exploration ludique autour de la lumière pour les 0-6 ans, en famille.
+   - **Lieu** : Bibliothèque Vivian Maier, Grenoble.
+   - **Date** : Samedi 4 octobre, 15h30.
+
+Ces événements sont principalement axés sur la lecture, la science et les activités ludiques pour les jeunes enfants. Si vous cherchez d'autres types d'événements pour enfants à Grenoble, je vous invite à consulter les sites des bibliothèques ou des institutions culturelles locales.",PASS," 1. **Exactitude** : La réponse générée liste des événements pour enfants avec des noms, lieux et dates cohérents (ex. ""Lumière ! Atelier scientifique 3-6 ans"", ""Le bal qui ne tourne pas rond !""). Ces informations correspondent à la réponse attendue, avec des détails supplémentaires valides (ex. ""Enfantines"", ""Atelier d'exploration""). 2. **Pertinence** : La réponse cible directement la question sur les événements pour enfants à Grenoble, en citant des activités adaptées (lecture, science, ludique). 3. **Complétude** : Tous les événements de la réponse attendue sont inclus, et d'autres pertinents sont ajoutés sans erreur. Aucun élément essentiel n'est manquant.","La réponse est exacte, pertinente et complète, avec des informations supplémentaires valides qui enrichissent la réponse sans erreur.",10
+2,Y a-t-il des événements pour enfants à Grenoble?,"Oui: Décorations de Pâques, ateliers mathématiques, Bal qui ne tourne pas rond, Lumière atelier scientifique",factual,easy,advanced,"Oui, il y a plusieurs événements pour enfants à Grenoble dans les informations fournies. Voici les détails :
+
+1. **""Des ateliers pour voyager""**
+   - **Description** : Ateliers ludiques pour créer des carnets de voyage, des cartes ornées de monstres marins, colorier une grande fresque, et repartir avec une carte postale et un goodie illustré.
+   - **Lieu** : Bibliothèque d'étude et du patrimoine, 12, boulevard Maréchal Lyautey, Grenoble.
+   - **Date** : Dimanche 22 septembre 2024, à partir de 10h00.
+
+2. **""Petits yeux, grands curieux""**
+   - **Description** : Sélection d’œuvres de l’artothèque accompagnée de lectures et de comptines pour les tout-petits. Durée : 45 minutes (sur réservation).
+   - **Lieu** : Bibliothèque d’étude et du patrimoine, 12 Boulevard Maréchal Lyautey, Grenoble.
+   - **Date** : Samedi 4 octobre 2024, à 10h30.
+
+3. **""Le Grenoble des mystères"" (Circuit 2 : énigmes et rébus)**
+   - **Description** : Parcours ludique dans les rues de Grenoble pour découvrir l'histoire et les mystères de la ville.
+   - **Lieu** : Patrimoine et Développement du Grand Grenoble, 10 rue Chenoise, Grenoble.
+   - **Dates** : Samedi 16 septembre (11h00 et 14h30) et les 21 et 22 septembre 2024.
+
+Ces événements offrent des activités adaptées aux enfants, que ce soit des ateliers créatifs, des découvertes culturelles ou des parcours ludiques.",PASS," La réponse générée est **exacte** (noms, dates et lieux des événements correspondent aux données disponibles) et **pertinente** (tous les événements proposés sont adaptés aux enfants). Elle est également **complète** dans le sens où elle fournit des détails utiles (descriptions, horaires, lieux) et inclut des événements valides non mentionnés dans la réponse attendue (ex. ""Des ateliers pour voyager""). Bien que la réponse attendue liste des événements spécifiques différents, la réponse générée reste conforme aux critères d'évaluation (PASS si tous les événements sont corrects, même s'ils ne sont pas identiques à la référence).","La réponse propose des événements pour enfants exacts, pertinents et détaillés, même s'ils diffèrent de ceux de la réponse attendue.",5
+3,Quels festivals de musique ont lieu en Savoie?,"Festival des Musiques du Chablais, Fête de la Musique, concerts divers",factual,medium,basic,"D'après le contexte fourni, voici les festivals ou événements musicaux ayant lieu en Savoie :
+
+1. **Festival des Musiques du Chablais**
+   - **Lieu** : Saint-Paul-en-Chablais (Haute-Savoie, mais proche de la Savoie)
+   - **Date** : Dimanche 16 juin, à partir de 9h00
+   - **Description** : Cérémonie officielle, défilé, concerts et prestations devant un jury composé de professionnels de la musique.
+
+2. **Fête de la Musique Albertville**
+   - **Lieu** : Esplanade de l'Hôtel de Ville, Albertville (Savoie)
+   - **Date** : Mercredi 21 juin, à partir de 19h00
+   - **Description** : Événement festif avec des concerts en plein air.
+
+3. **Concert sur le thème des contes**
+   - **Lieu** : Le Chorus, Bourg-Saint-Maurice (Savoie)
+   - **Date** : Samedi 1er février, 20h00
+   - **Description** : Concert thématique autour des contes.
+
+4. **Les Clarines - Quatuor pour 16 cloches**
+   - **Lieu** : Musée Savoisien, Chambéry (Savoie)
+   - **Date** : Dimanche 22 septembre 2024, à 11h00, 14h00, 15h00 et 16h00
+   - **Description** : Spectacle musical unique avec des clarines (cloches alpines).
+
+*Note* : Certains événements comme le **Festival des Musiques du Chablais** ou **Chants et danses de Savoie** (à Annecy) sont situés en Haute-Savoie, mais proches de la Savoie. Si vous cherchez uniquement des événements strictement en Savoie, privilégiez les deux derniers (Albertville et Bourg-Saint-Maurice).
+
+Si vous souhaitez des informations plus précises ou d'autres événements, n'hésitez pas à demander !",PASS," La réponse générée est **exacte** (les événements cités existent bien en Savoie ou à proximité immédiate, avec des détails précis sur les dates et lieux), **pertinente** (elle cible spécifiquement des festivals ou événements musicaux en Savoie, en distinguant clairement ceux strictement savoyards) et **complète** (elle inclut les éléments attendus comme la Fête de la Musique, ainsi que d'autres événements valides non mentionnés dans la réponse attendue, tout en précisant les nuances géographiques). Aucun élément erroné ou hors-sujet n'est présent.","La réponse fournit des informations correctes, pertinentes et enrichies, couvrant largement la question posée sans inexactitudes.",5
+3,Quels festivals de musique ont lieu en Savoie?,"Festival des Musiques du Chablais, Fête de la Musique, concerts divers",factual,medium,hybrid,"D'après le contexte fourni, voici les festivals ou événements musicaux ayant lieu en Savoie :
+
+1. **FÊTE DE LA MUSIQUE ALBERTVILLE**
+   - **Description** : Concerts à partir de 19h sur l'esplanade de l'Hôtel de Ville.
+   - **Lieu** : Esplanade de l'Hôtel de Ville, Albertville.
+   - **Date** : Mercredi 21 juin, 19h00.
+
+2. **Festival des Musiques du Chablais**
+   - **Description** : Cérémonie officielle, défilé, concerts et prestations devant un jury (avec des membres prestigieux comme Antoine Langagne, ancien chef de la Garde républicaine).
+   - **Lieu** : Saint-Paul-en-Chablais (Haute-Savoie, mais proche de la Savoie).
+   - **Date** : Dimanche 16 juin, 09h00.
+
+3. **Concert sur le thème des contes** (à Bourg-Saint-Maurice, en Savoie)
+   - **Description** : Concert thématique, sans précision sur le format festival.
+   - **Lieu** : Le Chorus, Bourg-Saint-Maurice.
+   - **Date** : Samedi 1er février, 20h00.
+
+4. **Les clarines - Quatuor pour 16 cloches** (à Chambéry, Savoie)
+   - **Description** : Spectacle musical avec des clarines (cloches alpines), dans le cadre des Journées du patrimoine.
+   - **Lieu** : Musée Savoisien, Chambéry.
+   - **Date** : Dimanche 22 septembre 2024 (plusieurs créneaux).
+
+5. **La Sainte-Chapelle lève le voile en musique** (à Chambéry, Savoie)
+   - **Description** : Visites guidées suivies de mini-concerts d'orgue.
+   - **Lieu** : Château des ducs de Savoie, Chambéry.
+   - **Date** : Dimanche 22 septembre 2024, 15h30.
+
+**Remarque** : Certains événements (comme ""Contes paysans en musique"" ou ""Chants et danses de Savoie"") incluent de la musique, mais ne sont pas des festivals à proprement parler. Le contexte ne mentionne pas d'autres festivals musicaux majeurs en Savoie.",PASS," 1. **Exactitude** : Les informations fournies (noms, dates, lieux) sont correctes et vérifiables dans le contexte donné. Aucun événement inventé ou erroné n'est présent. 2. **Pertinence** : La réponse cible bien les festivals ou événements musicaux en Savoie, même si certains (comme le Festival des Musiques du Chablais) sont en Haute-Savoie mais proches géographiquement. Les autres événements (concerts, spectacles) sont pertinents bien que non strictement des festivals. 3. **Complétude** : La réponse inclut les deux éléments attendus (Fête de la Musique, Festival des Musiques du Chablais) et ajoute des événements musicaux valides en Savoie, ce qui enrichit la réponse sans la rendre incorrecte. Aucun festival majeur en Savoie n'est omis selon le contexte.","La réponse est exacte, pertinente et complète, avec des événements supplémentaires valides qui élargissent utilement la couverture du sujet.",10
+3,Quels festivals de musique ont lieu en Savoie?,"Festival des Musiques du Chablais, Fête de la Musique, concerts divers",factual,medium,advanced,"D'après le contexte fourni, il n'y a pas de festivals de musique spécifiques mentionnés en Savoie. Cependant, deux événements musicaux sont listés dans cette région :
+
+1. **CONCERT CORS DES ALPES** par Alpenmusik (ensemble musical traditionnel des Alpes)
+   - **Lieu** : Salle de spectacle et de cinéma d’Aime, 439 Avenue de la Gare, 73210 Aime-la-Plagne, Savoie
+   - **Date** : Mardi 21 janvier (heure non précisée dans le contexte)
+   - **Description** : Concert mettant en avant le cor des Alpes et les sonorités traditionnelles alpines.
+
+2. **Sieste sonore au verger** (événement musical et bien-être)
+   - **Lieu** : Jardin des Cimes, 447 route du Docteur Davy, 74190 Passy, Haute-Savoie (à noter que Passy est en Haute-Savoie, pas en Savoie)
+   - **Date** : 3 et 4 juin
+   - **Description** : Sieste sonore avec instruments comme le handpan et le didgeridoo, proposée par des sonothérapeutes.
+
+Si vous cherchez des festivals plus larges (pluridisciplinaires ou dédiés à la musique), le contexte ne les mentionne pas. Pour des informations plus complètes, je vous conseille de consulter les agendas culturels locaux ou les offices de tourisme de Savoie.",PARTIAL," 1. **Exactitude** : Les deux événements cités sont corrects en termes de noms, lieux et dates (sauf la mention erronée de Passy en Haute-Savoie, qui est une inexactitude mineure mais pas critique pour la Savoie). Le ""Concert Cors des Alpes"" est bien en Savoie. 2. **Pertinence** : La réponse aborde la question des festivals de musique en Savoie, mais se limite à des événements ponctuels (concerts) plutôt qu'à des festivals récurrents ou pluridisciplinaires. Elle omet des festivals majeurs comme le *Festival des Musiques du Chablais* ou la *Fête de la Musique*, pourtant attendus. 3. **Complétude** : La réponse est incomplète car elle ne couvre pas les festivals principaux, mais elle fournit des informations valides et pertinentes sur des événements musicaux en Savoie. L'absence de festivals structurés est compensée par des détails concrets sur des concerts.","La réponse est exacte et pertinente pour les événements cités, mais incomplète car elle omet des festivals majeurs attendus, ce qui limite sa complétude.",5
