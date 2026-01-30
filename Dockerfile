@@ -40,9 +40,9 @@ WORKDIR /app
 # Copy application code
 COPY --chown=appuser:appuser src/ ./src/
 
-# Copy data files (FAISS index + events JSON)
-COPY --chown=appuser:appuser data/index/faiss_baseline/ ./data/index/faiss_baseline/
-COPY --chown=appuser:appuser data/processed/events_filtered.json ./data/processed/
+# Create data directories (will be populated by /rebuild endpoint)
+RUN mkdir -p /app/data/raw /app/data/processed /app/data/index/faiss_baseline \
+    && chown -R appuser:appuser /app/data
 
 # Switch to non-root user
 USER appuser
@@ -51,7 +51,8 @@ USER appuser
 ENV PYTHONUNBUFFERED=1
 
 # Health check for container orchestration
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+# Extended start-period for auto-rebuild on first start (downloads data + builds index)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Expose API port
