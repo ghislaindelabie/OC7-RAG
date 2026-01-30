@@ -13,6 +13,7 @@ This project implements an intelligent chatbot POC (Proof of Concept) for **Puls
 - **Vector Store**: FAISS for efficient similarity search
 - **Smart Query Handling**: Off-topic detection and query reformulation
 - **REST API**: FastAPI with comprehensive endpoints and error handling ✅
+- **Docker Support**: Multi-stage Dockerfile, docker-compose ✅
 - **Automated Evaluation**: LLM-as-Judge with Chain-of-Thought reasoning ✅
 - **Test Dataset**: 56 annotated questions across 4 categories ✅
 - **Test Coverage**: 31 API tests, 18 indexation tests, 28 retriever tests ✅
@@ -156,6 +157,32 @@ curl -X POST "http://localhost:8000/api/v1/ask" \
 }
 ```
 
+## Docker Deployment
+
+### Quick Start with Docker
+
+```bash
+# Build the image
+docker build -t oc7-rag-api .
+
+# Run with docker-compose
+docker-compose up -d
+
+# Or run directly
+docker run -d \
+  --name oc7-rag-api \
+  -p 8000:8000 \
+  -e MISTRAL_API_KEY="your-key" \
+  oc7-rag-api
+```
+
+### Docker Features
+
+- **Multi-stage build**: Optimized image size (~2GB)
+- **Non-root user**: Security best practice
+- **Health checks**: Container orchestration ready
+- **Baked-in data**: FAISS index included in image
+
 ## Development
 
 ### Current Status
@@ -180,7 +207,9 @@ curl -X POST "http://localhost:8000/api/v1/ask" \
 - Statistics generation (PASS/PARTIAL/FAIL breakdown)
 - Results export to CSV/JSON/TXT formats
 
-**Next Phase: Docker & Documentation (Phase 6)**
+**Phase 6 (Docker & Documentation): 🔄 In Progress**
+- Docker containerization (Dockerfile, docker-compose) ✅
+- Technical report and presentation (pending)
 
 ### Git Workflow
 
@@ -223,10 +252,11 @@ pytest tests/
 | **Sparse Retrieval** | BM25 (rank_bm25) |
 | **Reranking** | FlashRank (ms-marco-MiniLM-L-12-v2) |
 | **Framework** | LangChain |
-| **Notebooks** | Jupyter |
+| **API** | FastAPI + Uvicorn |
+| **Containerization** | Docker, docker-compose |
+| **Testing** | pytest, httpx |
 | **Data Processing** | Pandas, BeautifulSoup |
-| **API** | FastAPI (planned) |
-| **Evaluation** | LLM-as-Judge (mistral-large), RAGAS (optional) |
+| **Evaluation** | LLM-as-Judge (mistral-large) |
 
 ## Evaluation Framework
 
