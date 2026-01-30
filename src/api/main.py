@@ -212,13 +212,23 @@ async def rebuild_index(request: RebuildRequest):
     - `force`: Force rebuild even if index is recent (< 24h old)
     - `download_fresh_data`: Download fresh data (vs. use cached)
 
-    **Note:** This operation may take several minutes depending on data size.
-    Use `force=false` to skip if index is recent.
+    **Warning - Blocking Operation:**
+    This operation may take several minutes and blocks the API worker thread.
+    During rebuild, other API requests may timeout. For production use,
+    consider implementing a background task queue (e.g., Celery).
+
+    **Known Limitations:**
+    - No concurrent rebuild protection: simultaneous rebuild requests may
+      cause issues. Consider adding file-based locking for production.
+    - Download timeout is fixed at 300s. Future enhancement: make configurable
+      via OPENDATA_API_TIMEOUT environment variable.
+
+    Use `force=false` to skip if index is recent (< 24h old).
     """
     rag_service = get_rag_service()
 
     # Check if service is initialized
-    if not rag_service._initialized:
+    if not rag_service.is_initialized():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="RAG service not initialized"

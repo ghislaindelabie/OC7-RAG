@@ -319,6 +319,14 @@ class RAGService:
         """Check if service is ready to handle requests."""
         return self._initialized and self._index_loaded
 
+    def is_initialized(self) -> bool:
+        """Check if service has been initialized (attempted setup).
+
+        Note: This is different from is_ready() - initialization may have
+        failed but we still consider it "initialized" to prevent retry loops.
+        """
+        return self._initialized
+
     def is_llm_available(self) -> bool:
         """Check if LLM is available."""
         return self._llm_available

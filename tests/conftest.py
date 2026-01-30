@@ -100,7 +100,7 @@ def client_unhealthy():
     Useful for testing error handling when service is not ready.
     """
     mock = MagicMock()
-    mock._initialized = False  # Service not initialized
+    mock.is_initialized.return_value = False  # Service not initialized
     mock.is_ready.return_value = False
     mock.is_llm_available.return_value = False
     mock.get_index_size.return_value = None
