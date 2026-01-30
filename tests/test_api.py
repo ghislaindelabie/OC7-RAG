@@ -326,8 +326,8 @@ class TestErrorHandling:
             data="question=test",
             headers={"Content-Type": "application/x-www-form-urlencoded"}
         )
-        # FastAPI will return 422 for content type mismatch
-        assert response.status_code in [status.HTTP_422_UNPROCESSABLE_ENTITY, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE]
+        # FastAPI returns 422 for content type mismatch (treats it as validation error)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     def test_negative_top_k_returns_422(self, client):
         """Negative top_k should return 422."""
