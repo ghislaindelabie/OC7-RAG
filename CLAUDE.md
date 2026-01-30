@@ -53,9 +53,28 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 - Health check endpoint for container orchestration
 
 ## Testing Guidelines
-- Test data in `tests/test_data/test_questions.csv`
+- Test data in `tests/test_data/test_questions.csv` (56 annotated questions)
 - LLM-as-Judge evaluation (PASS/PARTIAL/FAIL)
 - pytest for unit tests
+- Use `FakeEmbeddings` in unit tests to avoid API calls
+
+### Test Files
+- `tests/test_indexation.py` - FAISS index tests (18 tests)
+- `tests/test_retriever.py` - Retriever tests (28 tests)
+- `tests/test_api.py` - API endpoint tests
+- `tests/conftest.py` - Shared fixtures
+
+### Running Tests
+```bash
+# Unit tests (fast, no API calls)
+python -m pytest tests/test_indexation.py tests/test_retriever.py -v -m "not integration"
+
+# All tests
+python -m pytest tests/ -v
+
+# With coverage
+python -m pytest tests/ --cov=src --cov-report=term-missing
+```
 
 ## Key Files Reference
 - **Macro Plan**: `Documents de planification et cadrage/MACRO_PLAN.md`

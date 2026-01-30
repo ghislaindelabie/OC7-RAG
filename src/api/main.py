@@ -6,7 +6,7 @@ Provides REST API endpoints for querying cultural events using RAG.
 
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, status
@@ -95,7 +95,7 @@ async def health_check():
         index_loaded=rag_service.is_ready(),
         index_size=rag_service.get_index_size(),
         llm_available=rag_service.is_llm_available(),
-        timestamp=datetime.utcnow().isoformat() + "Z",
+        timestamp=datetime.now(timezone.utc).isoformat(),
     )
 
 
