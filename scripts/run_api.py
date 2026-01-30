@@ -6,6 +6,7 @@ Usage:
     python scripts/run_api.py
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -14,6 +15,9 @@ project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 import uvicorn
+
+# Environment-based configuration
+DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 
 if __name__ == "__main__":
     print("=" * 60)
@@ -33,6 +37,6 @@ if __name__ == "__main__":
         "src.api.main:app",
         host="0.0.0.0",
         port=8000,
-        reload=True,
+        reload=DEBUG,  # Only reload in debug mode (set DEBUG=true env var)
         log_level="info"
     )
