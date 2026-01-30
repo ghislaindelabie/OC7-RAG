@@ -12,9 +12,10 @@ This project implements an intelligent chatbot POC (Proof of Concept) for **Puls
 - **LLM Integration**: Mistral API for embeddings and generation
 - **Vector Store**: FAISS for efficient similarity search
 - **Smart Query Handling**: Off-topic detection and query reformulation
-- **REST API**: FastAPI endpoints (Phase 4 - planned)
+- **REST API**: FastAPI with comprehensive endpoints and error handling ✅
 - **Automated Evaluation**: LLM-as-Judge with Chain-of-Thought reasoning ✅
-- **Test Dataset**: 18 annotated questions across 4 categories ✅
+- **Test Dataset**: 56 annotated questions across 4 categories ✅
+- **Test Coverage**: 31 API tests, 18 indexation tests, 28 retriever tests ✅
 
 ### Target Geographic Zone
 
@@ -95,15 +96,65 @@ cp .env.example .env
 jupyter notebook notebooks/01_baseline_rag.ipynb
 ```
 
-## API Endpoints (Coming Soon)
+## REST API (v0.3.0)
 
-The FastAPI implementation is planned for Phase 4:
+The API is implemented with FastAPI and provides comprehensive endpoints for RAG queries and system management.
+
+### Running the API
+
+```bash
+# Development server
+python scripts/run_api.py
+
+# Or directly with uvicorn
+uvicorn src.api.main:app --reload
+```
+
+API available at: `http://localhost:8000`
+- OpenAPI docs: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+### Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/ask` | POST | Submit a question, get an augmented response |
-| `/rebuild` | POST | Rebuild the vector index |
-| `/health` | GET | Health check |
+| `/health` | GET | Health check - returns index and LLM status |
+| `/api/v1/ask` | POST | Submit a question, get RAG-powered answer with sources |
+| `/api/v1/rag/info` | GET | Get RAG system information and statistics |
+| `/api/v1/rebuild` | POST | Rebuild the FAISS index (placeholder) |
+
+### Example: Query the API
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/ask" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "Quels concerts à Annecy ce week-end?",
+    "rag_method": "hybrid",
+    "top_k": 5
+  }'
+```
+
+**Response:**
+```json
+{
+  "answer": "Voici les concerts à Annecy ce week-end...",
+  "sources": [
+    {
+      "title": "Festival de Jazz",
+      "location": "Annecy",
+      "date_start": "2026-02-01",
+      "description_snippet": "Un concert exceptionnel..."
+    }
+  ],
+  "metadata": {
+    "rag_method": "hybrid",
+    "response_time_ms": 1250,
+    "retrieved_docs_count": 5,
+    "timestamp": "2026-01-30T10:00:00.000000Z"
+  }
+}
+```
 
 ## Development
 
@@ -114,14 +165,22 @@ The FastAPI implementation is planned for Phase 4:
 - Interactive notebook with comprehensive testing
 - Performance comparisons and metrics
 
+**Phase 4 (REST API): ✅ Completed**
+- FastAPI application with 4 endpoints
+- Comprehensive error handling and validation
+- OpenAPI documentation
+- 31 API tests passing
+- Integration with all 3 RAG methods
+
 **Phase 5 (Evaluation & Testing): ✅ Completed**
-- Test dataset: 18 annotated questions (factual, complex, off-topic, vague)
+- Test dataset: 56 annotated questions (factual, complex, off-topic, vague)
 - LLM-as-Judge evaluation with mistral-large and Chain-of-Thought
+- Unit tests: 18 indexation tests, 28 retriever tests
 - Automated test runner for all 3 RAG methods
 - Statistics generation (PASS/PARTIAL/FAIL breakdown)
 - Results export to CSV/JSON/TXT formats
 
-**Next Phase: FastAPI API Development (Phase 4)**
+**Next Phase: Docker & Documentation (Phase 6)**
 
 ### Git Workflow
 
