@@ -1,0 +1,94 @@
+name: Deploy to Hetzner Server
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.HETZNER_SSH_KEY }}
+
+    - name: Add server to known hosts
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -H ${{ secrets.HETZNER_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy to server
+      env:
+        SERVER_HOST: ${{ secrets.HETZNER_HOST }}
+        SERVER_USER: ${{ secrets.HETZNER_USER }}
+        MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      run: |
+        # Copy files to server
+        rsync -avz --delete \
+          --exclude='.git' \
+          --exclude='__pycache__' \
+          --exclude='.pytest_cache' \
+          --exclude='data/raw/*' \
+          --exclude='data/index/*' \
+          --exclude='.env' \
+          --exclude='venv' \
+          ./ $SERVER_USER@$SERVER_HOST:~/oc7-rag/
+
+        # Deploy on server
+        ssh $SERVER_USER@$SERVER_HOST << 'ENDSSH'
+          cd ~/oc7-rag
+          
+          # Create venv if needed
+          if [ ! -d "venv" ]; then
+            python3 -m venv venv
+          fi
+          
+          # Install dependencies
+          source venv/bin/activate
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          
+          # Stop old API if running
+          if [ -f api.pid ]; then
+            kill $(cat api.pid) 2>/dev/null || true
+          fi
+          
+          # Create .env file
+          cat > .env << ENVEOF
+MISTRAL_API_KEY=$MISTRAL_API_KEY
+ENVEOF
+          
+          # Start API
+          nohup python scripts/run_api.py > api.log 2>&1 &
+          echo $! > api.pid
+          
+          # Wait and verify
+          sleep 3
+          if curl -s http://localhost:8000/health > /dev/null; then
+            echo "✓ API deployed successfully"
+          else
+            echo "✗ API deployment failed"
+            tail -20 api.log
+            exit 1
+          fi
+ENDSSH
+
+    - name: Verify deployment
+      env:
+        SERVER_HOST: ${{ secrets.HETZNER_HOST }}
+      run: |
+        sleep 5
+        curl -f http://$SERVER_HOST:8000/health || exit 1
+        echo "✓ Health check passed"
+
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "Deployment failed! Check logs."
+        # Add notification here (Slack, Discord, email, etc.)
