@@ -1,7 +1,7 @@
 # Deployment Status - OC7 RAG API
 
-> **Last Updated**: 2026-01-30 12:00 CET
-> **Current Status**: ✅ Production-Ready - Track A Complete
+> **Last Updated**: 2026-01-30 17:30 CET
+> **Current Status**: ✅ v0.4.0 - Docker CI/CD + Web Chat Interface
 
 ---
 
@@ -10,14 +10,16 @@
 ### Server Details
 - **Host**: hetzner3-oc7api (2a01:4f8:c2c:5fbe::1)
 - **User**: oc7api (dedicated, minimal permissions)
-- **Location**: `/home/oc7api/oc7-rag`
+- **Location**: `/home/oc7api/oc7-rag-docker`
 - **Python**: 3.12.3
+- **Docker**: 29.1.3 + Compose v5.0.0
 - **Port**: 8000
 
 ### Current Deployment
-- **PID**: 3176152
-- **Status**: Running (degraded - expected)
-- **Index Loaded**: No (Step 3 pending)
+- **Method**: Docker container (manual deployment tested)
+- **Image**: oc7-rag-api:latest (1.45GB)
+- **Status**: Running, healthy
+- **Index Loaded**: Yes ✓
 - **LLM Available**: Yes ✓
 - **Health Check**: http://localhost:8000/health (accessible from server)
 
@@ -55,10 +57,22 @@ export MISTRAL_API_KEY='your_key'
 ./scripts/deploy.sh
 ```
 
+### Docker Deployment (NEW in v0.4.0)
+```bash
+# Manual Docker deployment
+cd ~/oc7-rag-docker
+docker compose up -d
+docker compose logs -f
+
+# Using production compose (pulls from GHCR)
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
 ### CI/CD Deployment
 - **Workflow**: `.github/workflows/deploy.yml`
 - **Trigger**: Push to `main` branch
-- **Status**: Configured (requires GitHub Secrets)
+- **Status**: Configured and ready
 - **GitHub Secrets needed**:
   - `HETZNER_HOST`: hetzner3-oc7api
   - `HETZNER_USER`: oc7api
@@ -72,7 +86,7 @@ export MISTRAL_API_KEY='your_key'
 ### oc7api User
 - **Created**: 2026-01-29
 - **UID/GID**: 1003/1003
-- **Groups**: oc7api (no sudo)
+- **Groups**: oc7api, docker
 - **Home**: `/home/oc7api`
 - **Shell**: `/bin/bash`
 - **SSH Key**: Same as ghislain user (~/.ssh/id_ghislain)
@@ -83,6 +97,7 @@ export MISTRAL_API_KEY='your_key'
 - ✅ Cannot access other users' files
 - ✅ Can only manage own home directory
 - ✅ Can bind to ports >1024 (8000)
+- ✅ Docker group access for container management
 - ✅ Principle of least privilege
 
 ---
@@ -122,6 +137,7 @@ pip install -r requirements.txt
 
 | Endpoint | Status | Notes |
 |----------|--------|-------|
+| `GET /` | ✅ Working | **NEW** Web chat interface |
 | `GET /health` | ✅ Working | Returns healthy (index loaded, LLM available) |
 | `GET /api/v1/rag/info` | ✅ Working | Returns system info |
 | `POST /api/v1/ask` | ✅ Working | RAG query with 3 methods (basic, hybrid, advanced) |
@@ -132,13 +148,13 @@ pip install -r requirements.txt
 {
     "status": "healthy",
     "index_loaded": true,
-    "index_size": 8547,
+    "index_size": 8542,
     "llm_available": true,
-    "timestamp": "2026-01-30T11:00:00.000000+00:00"
+    "timestamp": "2026-01-30T16:37:53.093122+00:00"
 }
 ```
 
-**Status**: All endpoints fully functional. Track A - API Development complete.
+**Status**: All endpoints fully functional. v0.4.0 complete.
 
 ---
 
@@ -149,9 +165,7 @@ pip install -r requirements.txt
 # Run all API tests
 pytest tests/test_api.py -v
 
-# Current status: 8 passed, 5 skipped
-# Passing: Health endpoint, RAG info, fixtures
-# Skipped: /ask, /rebuild, error handling (not implemented yet)
+# Current status: 31+ tests passing
 ```
 
 ### Server Testing
@@ -162,6 +176,7 @@ ssh -L 8000:localhost:8000 hetzner3-oc7api
 # Then on local machine
 curl http://localhost:8000/health
 curl http://localhost:8000/docs
+open http://localhost:8000  # Chat interface
 ```
 
 ---
@@ -174,61 +189,44 @@ curl http://localhost:8000/docs
 - **Workaround**: SSH tunnel or setup nginx reverse proxy
 - **Priority**: Low (API accessible from server)
 
-### Status "degraded"
-- **Issue**: Health shows "degraded"
-- **Cause**: FAISS index not loaded (expected)
-- **Fix**: Step 3 - implement actual RAG logic
-- **Priority**: Normal development flow
-
 ---
 
-## Track A Status: ✅ COMPLETE
+## Version Status: v0.4.0 ✅ COMPLETE
 
-### ✅ Step 1-2: API Foundation (DONE)
-- [x] FastAPI structure with 4 endpoints
+### ✅ Track A: API Development (DONE)
+- [x] FastAPI structure with 5 endpoints
 - [x] Pydantic schemas for validation
 - [x] Singleton RAG service pattern
-- [x] Development server script
-- [x] Pytest fixtures and test suite
-
-### ✅ Step 3: /ask Endpoint (DONE)
-- [x] Extract RAG logic from notebook
-- [x] Load FAISS index in rag_service.py
-- [x] Implement POST /api/v1/ask endpoint
-- [x] Write tests for /ask endpoint (13 tests)
-- [x] Test locally with real queries
-- [x] Deploy to oc7api user
-
-### ✅ Step 4: /rebuild Endpoint (DONE)
-- [x] Implement index rebuild logic
-- [x] Download fresh data from OpenDataSoft
-- [x] Filter and process events
-- [x] Hot-swap index functionality
-- [x] Test rebuild functionality
-- [x] Deploy
-
-### ✅ Step 5: Error Handling & Polish (DONE)
+- [x] POST /api/v1/ask with 3 RAG methods
+- [x] POST /api/v1/rebuild with data download
 - [x] Comprehensive error handling
-- [x] Code review fixes applied (14/14)
-- [x] Python 3.12+ compatibility
-- [x] Production-ready deployment
-- [x] Documentation complete
+- [x] 31+ tests passing
 
-## Next Phase: Track B - Docker Containerization
+### ✅ Track B: Evaluation & Testing (DONE)
+- [x] 56 annotated test questions
+- [x] LLM-as-Judge evaluation
+- [x] Unit tests (indexation + retriever)
 
-**Prerequisites**: ✅ All complete
-- API fully functional
-- Deployment infrastructure working
-- Code review addressed
-- Documentation comprehensive
+### ✅ Track C: Docker & CI/CD (DONE)
+- [x] Multi-stage Dockerfile (1.45GB image)
+- [x] docker-compose.yml (local/dev)
+- [x] docker-compose.prod.yml (production/GHCR)
+- [x] .dockerignore (optimized build context)
+- [x] CI/CD workflow (test → build → push → deploy)
+- [x] Docker installed on server
+- [x] Manual deployment tested
 
-**Docker Tasks**:
-- [ ] Multi-stage Dockerfile
-- [ ] docker-compose.yml configuration
-- [ ] Volume management (FAISS index, data)
-- [ ] Environment variable handling
-- [ ] Container orchestration strategy
-- [ ] Production deployment testing
+### ✅ Track D: Web Chat Interface (DONE)
+- [x] Modern web UI at GET /
+- [x] Support for 3 RAG methods
+- [x] Source document display
+- [x] Health status indicator
+- [x] Responsive mobile layout
+
+### ⏳ Remaining Tasks
+- [ ] Technical report (PDF)
+- [ ] PowerPoint presentation
+- [ ] Demo scenarios
 
 ---
 
@@ -240,6 +238,7 @@ curl http://localhost:8000/docs
 | 2026-01-29 20:43 | oc7api | Created dedicated user | ✅ Success |
 | 2026-01-29 20:47 | oc7api | First deployment | ✅ Success |
 | 2026-01-29 20:48 | ghislain | Cleanup old deployment | ✅ Complete |
+| 2026-01-30 16:37 | oc7api | Docker container deployment | ✅ Success |
 
 ---
 
@@ -270,6 +269,10 @@ ssh hetzner3-oc7api 'du -sh ~/oc7-rag'
 
 # Test health endpoint
 ssh hetzner3-oc7api 'curl -s localhost:8000/health'
+
+# Docker commands
+ssh hetzner3-oc7api 'sg docker "docker ps"'
+ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && sg docker "docker compose logs --tail=50"'
 ```
 
 ### Documentation Files
@@ -278,6 +281,8 @@ ssh hetzner3-oc7api 'curl -s localhost:8000/health'
 - `QUICK_START_DEPLOYMENT.md` - Quick guide for deployment
 - `SERVER_TEST.md` - Server testing guide
 - `DEPENDENCY_MANAGEMENT.md` - Dependency strategy
+- `CHATBOT_INTERFACE.md` - Web chat interface guide
+- `API_AUTHENTICATION.md` - Future authentication guide
 - `deploy_to_server.sh` - Manual deployment wrapper
 - `scripts/deploy.sh` - Core deployment script
 - `.github/workflows/deploy.yml` - CI/CD workflow
@@ -305,6 +310,9 @@ ssh hetzner3-oc7api 'grep "HTTP/1.1" ~/oc7-rag/api.log | tail -20'
 
 # API startup
 ssh hetzner3-oc7api 'grep "Starting up" ~/oc7-rag/api.log'
+
+# Docker logs
+ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && sg docker "docker compose logs --tail=100"'
 ```
 
 ---
@@ -316,11 +324,15 @@ If deployment fails:
 1. **Check logs**:
    ```bash
    ssh hetzner3-oc7api 'tail -50 ~/oc7-rag/api.log'
+   # Or for Docker:
+   ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && sg docker "docker compose logs --tail=50"'
    ```
 
 2. **Stop broken API**:
    ```bash
    ssh hetzner3-oc7api 'kill $(cat ~/oc7-rag/api.pid) 2>/dev/null'
+   # Or for Docker:
+   ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && sg docker "docker compose down"'
    ```
 
 3. **Redeploy previous version**:

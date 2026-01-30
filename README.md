@@ -12,11 +12,11 @@ This project implements an intelligent chatbot POC (Proof of Concept) for **Puls
 - **LLM Integration**: Mistral API for embeddings and generation
 - **Vector Store**: FAISS for efficient similarity search
 - **Smart Query Handling**: Off-topic detection and query reformulation
-- **REST API**: FastAPI with comprehensive endpoints and error handling ✅
+- **REST API**: FastAPI with 4 endpoints ✅
 - **Docker Support**: Multi-stage Dockerfile, docker-compose ✅
 - **Automated Evaluation**: LLM-as-Judge with Chain-of-Thought reasoning ✅
 - **Test Dataset**: 56 annotated questions across 4 categories ✅
-- **Test Coverage**: 31 API tests, 18 indexation tests, 28 retriever tests ✅
+- **Unit Tests**: 31+ tests covering API, indexation, retrieval ✅
 
 ### Target Geographic Zone
 
@@ -97,65 +97,50 @@ cp .env.example .env
 jupyter notebook notebooks/01_baseline_rag.ipynb
 ```
 
-## REST API (v0.3.0)
+## REST API
 
-The API is implemented with FastAPI and provides comprehensive endpoints for RAG queries and system management.
+The FastAPI application provides the following endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check with index and LLM status |
+| `/api/v1/rag/info` | GET | RAG system information and statistics |
+| `/api/v1/ask` | POST | Submit a question, get an augmented response |
+| `/api/v1/rebuild` | POST | Rebuild the FAISS vector index |
 
 ### Running the API
 
 ```bash
-# Development server
+# Activate environment
+conda activate OC7
+
+# Run the API server
 python scripts/run_api.py
 
-# Or directly with uvicorn
-uvicorn src.api.main:app --reload
+# API available at http://localhost:8000
+# Interactive docs at http://localhost:8000/docs
 ```
 
-API available at: `http://localhost:8000`
-- OpenAPI docs: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-### Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check - returns index and LLM status |
-| `/api/v1/ask` | POST | Submit a question, get RAG-powered answer with sources |
-| `/api/v1/rag/info` | GET | Get RAG system information and statistics |
-| `/api/v1/rebuild` | POST | Rebuild the FAISS index (placeholder) |
-
-### Example: Query the API
+### Example Usage
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/ask" \
+# Health check
+curl http://localhost:8000/health
+
+# Ask a question (using hybrid RAG method)
+curl -X POST http://localhost:8000/api/v1/ask \
   -H "Content-Type: application/json" \
-  -d '{
-    "question": "Quels concerts à Annecy ce week-end?",
-    "rag_method": "hybrid",
-    "top_k": 5
-  }'
+  -d '{"question": "Quels concerts à Annecy ce weekend?", "rag_method": "hybrid"}'
+
+# Get RAG system info
+curl http://localhost:8000/api/v1/rag/info
 ```
 
-**Response:**
-```json
-{
-  "answer": "Voici les concerts à Annecy ce week-end...",
-  "sources": [
-    {
-      "title": "Festival de Jazz",
-      "location": "Annecy",
-      "date_start": "2026-02-01",
-      "description_snippet": "Un concert exceptionnel..."
-    }
-  ],
-  "metadata": {
-    "rag_method": "hybrid",
-    "response_time_ms": 1250,
-    "retrieved_docs_count": 5,
-    "timestamp": "2026-01-30T10:00:00.000000Z"
-  }
-}
-```
+### RAG Methods
+
+- `basic` - FAISS vector similarity only (fastest)
+- `hybrid` - FAISS + BM25 keyword search (recommended)
+- `advanced` - Hybrid + FlashRank reranking (highest quality)
 
 ## Docker Deployment
 
@@ -183,6 +168,18 @@ docker run -d \
 - **Health checks**: Container orchestration ready
 - **Baked-in data**: FAISS index included in image
 
+### Testing the Container
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Test RAG query
+curl -X POST http://localhost:8000/api/v1/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Quels concerts à Annecy?"}'
+```
+
 ## Development
 
 ### Current Status
@@ -192,23 +189,20 @@ docker run -d \
 - Interactive notebook with comprehensive testing
 - Performance comparisons and metrics
 
-**Phase 4 (REST API): ✅ Completed**
-- FastAPI application with 4 endpoints
-- Comprehensive error handling and validation
-- OpenAPI documentation
-- 31 API tests passing
-- Integration with all 3 RAG methods
+**Phase 4 (FastAPI API): ✅ Completed**
+- 4 REST endpoints (health, info, ask, rebuild)
+- 31 passing tests with TDD approach
+- Comprehensive error handling
+- OpenAPI documentation at `/docs`
 
 **Phase 5 (Evaluation & Testing): ✅ Completed**
 - Test dataset: 56 annotated questions (factual, complex, off-topic, vague)
 - LLM-as-Judge evaluation with mistral-large and Chain-of-Thought
-- Unit tests: 18 indexation tests, 28 retriever tests
 - Automated test runner for all 3 RAG methods
-- Statistics generation (PASS/PARTIAL/FAIL breakdown)
-- Results export to CSV/JSON/TXT formats
+- Unit tests for indexation (18 tests) and retrieval (28 tests)
 
 **Phase 6 (Docker & Documentation): 🔄 In Progress**
-- Docker containerization (Dockerfile, docker-compose) ✅
+- Docker containerization (Dockerfile, docker-compose)
 - Technical report and presentation (pending)
 
 ### Git Workflow
@@ -242,11 +236,11 @@ jupyter notebook notebooks/01_baseline_rag.ipynb
 # Run all tests
 pytest tests/ -v
 
-# Run API tests only
-pytest tests/test_api.py -v
-
-# Run unit tests (indexation + retriever)
+# Run unit tests only (fast, no API calls)
 pytest tests/test_indexation.py tests/test_retriever.py -v
+
+# Run API tests
+pytest tests/test_api.py -v
 
 # Run with coverage
 pytest tests/ --cov=src --cov-report=term-missing
@@ -295,7 +289,7 @@ Located in `tests/test_data/test_questions.csv` with 56 annotated questions:
 ### Evaluation Results
 
 Run `notebooks/01_baseline_rag.ipynb` cells 24-31 to:
-- Execute all 56 test questions through 3 RAG methods
+- Execute all 18 test questions through 3 RAG methods
 - Generate automated verdicts with LLM judge
 - View statistics breakdown by category and difficulty
 - Export results to `evaluation_results/` directory
