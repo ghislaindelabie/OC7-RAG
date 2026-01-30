@@ -132,12 +132,16 @@ class RAGService:
         if self._initialized:
             return
 
+        # Mark as initialized immediately to prevent repeated init attempts on failure.
+        # This ensures we only try once - subsequent calls will return early.
+        self._initialized = True
+
         logger.info("Initializing RAG Service...")
 
         # Service state
-        self._initialized = False
         self._index_loaded = False
         self._llm_available = False
+        self._advanced_uses_fallback = False  # Track if advanced method fell back to hybrid
 
         # Components (will be loaded on first use or explicitly)
         self.vectorstore = None
@@ -157,11 +161,9 @@ class RAGService:
         # Try to load components
         try:
             self._load_components()
-            self._initialized = True
             logger.info("RAG Service initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize RAG Service: {e}")
-            self._initialized = False
 
     def _load_events_as_documents(self) -> List[Document]:
         """Load events JSON and convert to LangChain Documents."""
@@ -213,6 +215,12 @@ class RAGService:
             # Load FAISS index
             if self.index_path.exists():
                 logger.info(f"Loading FAISS index from {self.index_path}")
+                # NOTE: allow_dangerous_deserialization=True is required by LangChain's FAISS
+                # wrapper because it uses pickle for the docstore. This is safe in our context:
+                # - We control the index source (built from our own data pipeline)
+                # - No untrusted external indices are loaded
+                # - The index path is hardcoded, not user-controllable
+                # For production with untrusted indices, consider index signature verification.
                 self.vectorstore = FAISS.load_local(
                     str(self.index_path),
                     self.embeddings,
@@ -276,6 +284,9 @@ class RAGService:
         )
 
         # Advanced RAG (with reranking)
+        # Uses FlashrankRerank for re-ordering retrieved documents by relevance.
+        # If FlashRank is unavailable (missing dependency, incompatible environment),
+        # we fall back to hybrid method to ensure the API remains functional.
         logger.info("Setting up Advanced RAG chain...")
         try:
             compressor = FlashrankRerank(top_n=5)
@@ -291,9 +302,13 @@ class RAGService:
                 chain_type_kwargs={"prompt": prompt}
             )
         except Exception as e:
-            logger.warning(f"Failed to setup Advanced RAG (reranking): {e}")
-            # Fallback to hybrid for advanced
+            # Fallback to hybrid for advanced - API remains functional but without reranking
+            logger.warning(
+                f"FlashrankRerank unavailable ({e}), 'advanced' method will use hybrid retrieval. "
+                "Install flashrank package for reranking support."
+            )
             self.chains["advanced"] = self.chains["hybrid"]
+            self._advanced_uses_fallback = True
 
         logger.info("All RAG chains ready")
 
