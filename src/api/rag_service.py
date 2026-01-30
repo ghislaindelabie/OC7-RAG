@@ -9,6 +9,9 @@ import json
 import logging
 import os
 import time
+import tempfile
+import shutil
+import requests
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
@@ -326,6 +329,104 @@ class RAGService:
             return None
         return self.vectorstore.index.ntotal
 
+    def _download_openagenda_data(self, output_path: Path) -> int:
+        """
+        Download fresh events data from OpenDataSoft API.
+
+        Args:
+            output_path: Where to save the downloaded JSON
+
+        Returns:
+            Number of events downloaded
+        """
+        # OpenDataSoft API endpoint for OpenAgenda events
+        # Full dataset export (may be large - 100K+ events)
+        api_url = "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/evenements-publics-openagenda/exports/json"
+
+        logger.info(f"Downloading fresh data from OpenDataSoft...")
+        logger.info(f"API URL: {api_url}")
+
+        try:
+            # Download with streaming to handle large files
+            response = requests.get(api_url, stream=True, timeout=300)
+            response.raise_for_status()
+
+            # Save to temporary file first
+            with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.json') as tmp_file:
+                tmp_path = Path(tmp_file.name)
+                total_size = 0
+                for chunk in response.iter_content(chunk_size=8192):
+                    if chunk:
+                        tmp_file.write(chunk)
+                        total_size += len(chunk)
+
+            logger.info(f"  Downloaded {total_size / 1024 / 1024:.2f} MB")
+
+            # Move to final location
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(tmp_path), str(output_path))
+
+            # Count events
+            with open(output_path, 'r', encoding='utf-8') as f:
+                events = json.load(f)
+                event_count = len(events) if isinstance(events, list) else 0
+
+            logger.info(f"  Downloaded {event_count:,} total events")
+            return event_count
+
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to download data: {e}")
+            raise RuntimeError(f"Failed to download data from OpenDataSoft: {e}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON: {e}")
+            raise RuntimeError(f"Downloaded data is not valid JSON: {e}")
+
+    def _filter_events(self, raw_data_path: Path) -> List[Dict]:
+        """
+        Filter events to keep only target departments and recent dates.
+
+        Args:
+            raw_data_path: Path to raw events JSON
+
+        Returns:
+            List of filtered event dictionaries
+        """
+        target_departments = {"Savoie", "Haute-Savoie", "Isère"}
+        min_date = datetime(2023, 1, 1)
+
+        logger.info("Filtering events...")
+        logger.info(f"  Target departments: {', '.join(target_departments)}")
+        logger.info(f"  Minimum date: {min_date.strftime('%Y-%m-%d')}")
+
+        with open(raw_data_path, 'r', encoding='utf-8') as f:
+            events = json.load(f)
+
+        filtered_events = []
+        for event in events:
+            # Check department
+            department = event.get("location_department", "")
+            if department not in target_departments:
+                continue
+
+            # Check date
+            firstdate = event.get("firstdate_begin")
+            if not firstdate:
+                continue
+
+            try:
+                event_date = datetime.fromisoformat(
+                    firstdate.replace('Z', '+00:00')
+                ).replace(tzinfo=None)
+                if event_date < min_date:
+                    continue
+            except (ValueError, AttributeError):
+                continue
+
+            filtered_events.append(event)
+
+        logger.info(f"  Kept {len(filtered_events):,} events out of {len(events):,}")
+        return filtered_events
+
     def query(
         self,
         question: str,
@@ -410,29 +511,108 @@ class RAGService:
         start_time = time.time()
 
         try:
-            # TODO: Implement index rebuild logic
-            # 1. Download data if requested
-            # 2. Process and filter events
-            # 3. Build FAISS index
-            # 4. Hot-swap the index
+            # Check if index is recent and force=False
+            if not force and self.index_path.exists():
+                index_age_hours = (time.time() - self.index_path.stat().st_mtime) / 3600
+                if index_age_hours < 24:
+                    logger.info(f"Index is recent ({index_age_hours:.1f}h old), skipping rebuild")
+                    return {
+                        "status": "skipped",
+                        "message": f"Index is recent ({index_age_hours:.1f}h old). Use force=true to rebuild anyway.",
+                        "events_indexed": None,
+                        "build_time_seconds": time.time() - start_time,
+                        "index_path": str(self.index_path)
+                    }
+
+            logger.info("Starting index rebuild...")
+
+            # Step 1: Get data
+            raw_data_path = self.project_root / "data" / "raw" / "evenements-publics-openagenda.json"
+
+            if download_fresh_data:
+                logger.info("Step 1/4: Downloading fresh data...")
+                total_events = self._download_openagenda_data(raw_data_path)
+            else:
+                if not raw_data_path.exists():
+                    raise FileNotFoundError(f"Raw data not found at {raw_data_path}. Set download_fresh_data=true.")
+                logger.info(f"Step 1/4: Using existing data at {raw_data_path}")
+
+            # Step 2: Filter events
+            logger.info("Step 2/4: Filtering events...")
+            filtered_events = self._filter_events(raw_data_path)
+
+            # Save filtered data
+            filtered_data_path = self.data_path
+            filtered_data_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(filtered_data_path, 'w', encoding='utf-8') as f:
+                json.dump(filtered_events, f, ensure_ascii=False, indent=2)
+            logger.info(f"  Saved to {filtered_data_path}")
+
+            # Step 3: Convert to Documents
+            logger.info("Step 3/4: Converting to LangChain Documents...")
+            documents = []
+            for event in filtered_events:
+                text = _build_document_text(event)
+                metadata = _build_metadata(event)
+                if text.strip():
+                    documents.append(Document(page_content=text, metadata=metadata))
+
+            logger.info(f"  Created {len(documents):,} documents")
+
+            # Step 4: Build new FAISS index
+            logger.info("Step 4/4: Building FAISS index...")
+
+            if not self.embeddings:
+                raise RuntimeError("Embeddings not initialized. Cannot rebuild index.")
+
+            new_vectorstore = FAISS.from_documents(documents, self.embeddings)
+
+            # Save new index
+            temp_index_path = self.index_path.parent / f"{self.index_path.name}_temp"
+            temp_index_path.mkdir(parents=True, exist_ok=True)
+            new_vectorstore.save_local(str(temp_index_path))
+            logger.info(f"  Saved to temporary location: {temp_index_path}")
+
+            # Hot-swap: replace old index with new one
+            if self.index_path.exists():
+                backup_path = self.index_path.parent / f"{self.index_path.name}_backup"
+                if backup_path.exists():
+                    shutil.rmtree(backup_path)
+                shutil.move(str(self.index_path), str(backup_path))
+                logger.info(f"  Backed up old index to {backup_path}")
+
+            shutil.move(str(temp_index_path), str(self.index_path))
+            logger.info(f"  Moved new index to {self.index_path}")
+
+            # Update in-memory vectorstore and documents
+            self.vectorstore = new_vectorstore
+            self.documents = documents
+            self._index_loaded = True
+            self.index_metadata["last_updated"] = datetime.utcnow().isoformat() + "Z"
+
+            # Rebuild RAG chains with new index
+            if self.llm:
+                logger.info("Rebuilding RAG chains...")
+                self._setup_chains()
 
             build_time = time.time() - start_time
+            logger.info(f"Index rebuild complete in {build_time:.2f}s")
 
             return {
                 "status": "success",
-                "message": "Index rebuilt successfully (placeholder)",
-                "events_indexed": 0,  # Placeholder
-                "build_time_seconds": build_time,
+                "message": "Index rebuilt successfully",
+                "events_indexed": len(documents),
+                "build_time_seconds": round(build_time, 2),
                 "index_path": str(self.index_path)
             }
 
         except Exception as e:
-            logger.error(f"Error rebuilding index: {e}")
+            logger.error(f"Error rebuilding index: {e}", exc_info=True)
             return {
                 "status": "failed",
                 "message": f"Failed to rebuild index: {str(e)}",
                 "events_indexed": None,
-                "build_time_seconds": time.time() - start_time,
+                "build_time_seconds": round(time.time() - start_time, 2),
                 "index_path": None
             }
 

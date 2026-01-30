@@ -200,13 +200,58 @@ async def rebuild_index(request: RebuildRequest):
     Rebuild the FAISS index from fresh or cached data.
 
     This endpoint downloads fresh event data (if requested) and
-    rebuilds the vector index. Use with caution in production.
+    rebuilds the vector index.
+
+    **Process:**
+    1. Download fresh data from OpenDataSoft (if requested)
+    2. Filter events for target departments (Savoie, Haute-Savoie, Isère)
+    3. Build new FAISS index
+    4. Hot-swap the index (atomic update)
+
+    **Parameters:**
+    - `force`: Force rebuild even if index is recent (< 24h old)
+    - `download_fresh_data`: Download fresh data (vs. use cached)
+
+    **Note:** This operation may take several minutes depending on data size.
+    Use `force=false` to skip if index is recent.
     """
-    # TODO: Implement in Step 4
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Endpoint not yet implemented"
-    )
+    rag_service = get_rag_service()
+
+    # Check if service is initialized
+    if not rag_service._initialized:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="RAG service not initialized"
+        )
+
+    try:
+        logger.info(f"Rebuild request: force={request.force}, download_fresh_data={request.download_fresh_data}")
+
+        # Run rebuild (may take a while)
+        result = rag_service.rebuild_index(
+            force=request.force,
+            download_fresh_data=request.download_fresh_data
+        )
+
+        # Map status to HTTP response
+        if result["status"] == "success":
+            return RebuildResponse(**result)
+        elif result["status"] == "skipped":
+            return RebuildResponse(**result)
+        else:  # "failed"
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=result["message"]
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error processing rebuild request: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error rebuilding index: {str(e)}"
+        )
 
 
 # ============================================================================
