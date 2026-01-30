@@ -12,9 +12,11 @@ This project implements an intelligent chatbot POC (Proof of Concept) for **Puls
 - **LLM Integration**: Mistral API for embeddings and generation
 - **Vector Store**: FAISS for efficient similarity search
 - **Smart Query Handling**: Off-topic detection and query reformulation
-- **REST API**: FastAPI endpoints (Phase 4 - planned)
+- **REST API**: FastAPI with 4 endpoints ✅
+- **Docker Support**: Multi-stage Dockerfile, docker-compose ✅
 - **Automated Evaluation**: LLM-as-Judge with Chain-of-Thought reasoning ✅
-- **Test Dataset**: 18 annotated questions across 4 categories ✅
+- **Test Dataset**: 56 annotated questions across 4 categories ✅
+- **Unit Tests**: 31+ tests covering API, indexation, retrieval ✅
 
 ### Target Geographic Zone
 
@@ -95,15 +97,88 @@ cp .env.example .env
 jupyter notebook notebooks/01_baseline_rag.ipynb
 ```
 
-## API Endpoints (Coming Soon)
+## REST API
 
-The FastAPI implementation is planned for Phase 4:
+The FastAPI application provides the following endpoints:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/ask` | POST | Submit a question, get an augmented response |
-| `/rebuild` | POST | Rebuild the vector index |
-| `/health` | GET | Health check |
+| `/health` | GET | Health check with index and LLM status |
+| `/api/v1/rag/info` | GET | RAG system information and statistics |
+| `/api/v1/ask` | POST | Submit a question, get an augmented response |
+| `/api/v1/rebuild` | POST | Rebuild the FAISS vector index |
+
+### Running the API
+
+```bash
+# Activate environment
+conda activate OC7
+
+# Run the API server
+python scripts/run_api.py
+
+# API available at http://localhost:8000
+# Interactive docs at http://localhost:8000/docs
+```
+
+### Example Usage
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Ask a question (using hybrid RAG method)
+curl -X POST http://localhost:8000/api/v1/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Quels concerts à Annecy ce weekend?", "rag_method": "hybrid"}'
+
+# Get RAG system info
+curl http://localhost:8000/api/v1/rag/info
+```
+
+### RAG Methods
+
+- `basic` - FAISS vector similarity only (fastest)
+- `hybrid` - FAISS + BM25 keyword search (recommended)
+- `advanced` - Hybrid + FlashRank reranking (highest quality)
+
+## Docker Deployment
+
+### Quick Start with Docker
+
+```bash
+# Build the image
+docker build -t oc7-rag-api .
+
+# Run with docker-compose
+docker-compose up -d
+
+# Or run directly
+docker run -d \
+  --name oc7-rag-api \
+  -p 8000:8000 \
+  -e MISTRAL_API_KEY="your-key" \
+  oc7-rag-api
+```
+
+### Docker Features
+
+- **Multi-stage build**: Optimized image size (~2GB)
+- **Non-root user**: Security best practice
+- **Health checks**: Container orchestration ready
+- **Baked-in data**: FAISS index included in image
+
+### Testing the Container
+
+```bash
+# Health check
+curl http://localhost:8000/health
+
+# Test RAG query
+curl -X POST http://localhost:8000/api/v1/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Quels concerts à Annecy?"}'
+```
 
 ## Development
 
@@ -114,14 +189,21 @@ The FastAPI implementation is planned for Phase 4:
 - Interactive notebook with comprehensive testing
 - Performance comparisons and metrics
 
+**Phase 4 (FastAPI API): ✅ Completed**
+- 4 REST endpoints (health, info, ask, rebuild)
+- 31 passing tests with TDD approach
+- Comprehensive error handling
+- OpenAPI documentation at `/docs`
+
 **Phase 5 (Evaluation & Testing): ✅ Completed**
-- Test dataset: 18 annotated questions (factual, complex, off-topic, vague)
+- Test dataset: 56 annotated questions (factual, complex, off-topic, vague)
 - LLM-as-Judge evaluation with mistral-large and Chain-of-Thought
 - Automated test runner for all 3 RAG methods
-- Statistics generation (PASS/PARTIAL/FAIL breakdown)
-- Results export to CSV/JSON/TXT formats
+- Unit tests for indexation (18 tests) and retrieval (28 tests)
 
-**Next Phase: FastAPI API Development (Phase 4)**
+**Phase 6 (Docker & Documentation): 🔄 In Progress**
+- Docker containerization (Dockerfile, docker-compose)
+- Technical report and presentation (pending)
 
 ### Git Workflow
 
@@ -148,10 +230,20 @@ jupyter notebook notebooks/01_baseline_rag.ipynb
 # Execute cells 1-31, set RUN_FULL_EVALUATION = True in cell 28 for full test suite
 ```
 
-### Testing (Unit Tests - Planned)
+### Running Tests
 
 ```bash
-pytest tests/
+# Run all tests
+pytest tests/ -v
+
+# Run unit tests only (fast, no API calls)
+pytest tests/test_indexation.py tests/test_retriever.py -v
+
+# Run API tests
+pytest tests/test_api.py -v
+
+# Run with coverage
+pytest tests/ --cov=src --cov-report=term-missing
 ```
 
 ## Tech Stack
@@ -164,23 +256,24 @@ pytest tests/
 | **Sparse Retrieval** | BM25 (rank_bm25) |
 | **Reranking** | FlashRank (ms-marco-MiniLM-L-12-v2) |
 | **Framework** | LangChain |
-| **Notebooks** | Jupyter |
+| **API** | FastAPI + Uvicorn |
+| **Containerization** | Docker, docker-compose |
+| **Testing** | pytest, httpx |
 | **Data Processing** | Pandas, BeautifulSoup |
-| **API** | FastAPI (planned) |
-| **Evaluation** | LLM-as-Judge (mistral-large), RAGAS (optional) |
+| **Evaluation** | LLM-as-Judge (mistral-large) |
 
 ## Evaluation Framework
 
 ### Test Dataset
 
-Located in `tests/test_data/test_questions.csv` with 18 annotated questions:
+Located in `tests/test_data/test_questions.csv` with 56 annotated questions:
 
 | Category | Count | Description |
 |----------|-------|-------------|
-| **Factual** | 10 | Direct questions about specific events |
-| **Complex** | 3 | Multi-criteria queries (location + type + audience) |
-| **Off-topic** | 3 | Questions unrelated to cultural events |
-| **Vague** | 2 | Incomplete questions requiring clarification |
+| **Factual** | 30+ | Direct questions about specific events |
+| **Complex** | 10+ | Multi-criteria queries (location + type + audience) |
+| **Off-topic** | 8+ | Questions unrelated to cultural events |
+| **Vague** | 8+ | Incomplete questions requiring clarification |
 
 ### LLM-as-Judge Evaluation
 
