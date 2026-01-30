@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puls-Events RAG Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 900px;
+            width: 100%;
+            height: 85vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            text-align: center;
+            padding: 30px 40px 20px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .header h1 {
+            color: #2d3748;
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+        .header p {
+            color: #718096;
+            font-size: 0.95rem;
+        }
+        .status-badge {
+            display: inline-block;
+            background: #48bb78;
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+        .status-badge.offline {
+            background: #f56565;
+        }
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .message {
+            display: flex;
+            gap: 12px;
+            animation: fadeIn 0.3s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message.user {
+            flex-direction: row-reverse;
+        }
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .message.assistant .message-avatar {
+            background: #e2e8f0;
+        }
+        .message-content {
+            max-width: 70%;
+            padding: 12px 18px;
+            border-radius: 18px;
+            line-height: 1.5;
+        }
+        .message.user .message-content {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .message.assistant .message-content {
+            background: #f7fafc;
+            color: #2d3748;
+            border-bottom-left-radius: 4px;
+        }
+        .sources {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+        }
+        .sources-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 8px;
+        }
+        .source-item {
+            background: white;
+            padding: 10px;
+            margin: 6px 0;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+            font-size: 0.85rem;
+        }
+        .source-title {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 4px;
+        }
+        .source-meta {
+            color: #718096;
+            font-size: 0.8rem;
+        }
+        .input-container {
+            padding: 20px 40px 30px;
+            border-top: 2px solid #e2e8f0;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .method-selector {
+            padding: 10px 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            background: white;
+            font-size: 0.9rem;
+            color: #2d3748;
+            cursor: pointer;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .method-selector:hover {
+            border-color: #667eea;
+        }
+        .method-selector:focus {
+            border-color: #667eea;
+        }
+        #questionInput {
+            flex: 1;
+            padding: 14px 18px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        #questionInput:focus {
+            border-color: #667eea;
+        }
+        #sendButton {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-size: 0.95rem;
+        }
+        #sendButton:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        #sendButton:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .typing-indicator {
+            display: none;
+            gap: 4px;
+            padding: 12px 18px;
+        }
+        .typing-indicator.active {
+            display: flex;
+        }
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #cbd5e0;
+            animation: typing 1.4s infinite;
+        }
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-10px); }
+        }
+        .welcome-message {
+            text-align: center;
+            color: #718096;
+            padding: 40px 20px;
+        }
+        .welcome-message h2 {
+            color: #2d3748;
+            margin-bottom: 12px;
+            font-size: 1.5rem;
+        }
+        .footer-links {
+            text-align: center;
+            padding: 15px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 0.85rem;
+        }
+        .footer-links a {
+            color: #667eea;
+            text-decoration: none;
+            margin: 0 10px;
+        }
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            .container {
+                height: 90vh;
+            }
+            .chat-container, .input-container {
+                padding-left: 20px;
+                padding-right: 20px;
+            }
+            .message-content {
+                max-width: 85%;
+            }
+            .method-selector {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎭 Puls-Events Assistant</h1>
+            <p>Questions sur les événements culturels en Savoie, Haute-Savoie et Isère</p>
+            <span class="status-badge" id="statusBadge">🟢 En ligne</span>
+        </div>
+
+        <div class="chat-container" id="chatContainer">
+            <div class="welcome-message">
+                <h2>Bienvenue !</h2>
+                <p>Posez-moi des questions sur les événements culturels dans votre région.</p>
+                <p style="margin-top: 10px; font-size: 0.9rem;">
+                    Exemples : "Quels concerts à Chambéry ce weekend ?" ou "Expositions à Annecy en février ?"
+                </p>
+            </div>
+        </div>
+
+        <div class="input-container">
+            <select id="methodSelector" class="method-selector" title="Méthode RAG">
+                <option value="basic">Basique</option>
+                <option value="hybrid" selected>Hybride</option>
+                <option value="advanced">Avancé</option>
+            </select>
+            <input
+                type="text"
+                id="questionInput"
+                placeholder="Posez votre question..."
+                autocomplete="off"
+            />
+            <button id="sendButton">Envoyer</button>
+        </div>
+
+        <div class="footer-links">
+            <a href="/docs" target="_blank">API Docs</a> •
+            <a href="/health" target="_blank">Status</a> •
+            <a href="/api/v1/rag/info" target="_blank">Info</a>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const questionInput = document.getElementById('questionInput');
+        const sendButton = document.getElementById('sendButton');
+        const methodSelector = document.getElementById('methodSelector');
+        const statusBadge = document.getElementById('statusBadge');
+
+        // Check API health on load
+        async function checkHealth() {
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+                if (data.status === 'healthy') {
+                    statusBadge.textContent = '🟢 En ligne';
+                    statusBadge.classList.remove('offline');
+                } else {
+                    statusBadge.textContent = '🟡 Service dégradé';
+                    statusBadge.classList.add('offline');
+                }
+            } catch (error) {
+                statusBadge.textContent = '🔴 Hors ligne';
+                statusBadge.classList.add('offline');
+            }
+        }
+
+        // Add message to chat
+        function addMessage(content, isUser, sources = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'assistant'}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = isUser ? '👤' : '🤖';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = content;
+
+            // Add sources if available
+            if (sources && sources.length > 0) {
+                const sourcesDiv = document.createElement('div');
+                sourcesDiv.className = 'sources';
+
+                const sourcesTitle = document.createElement('div');
+                sourcesTitle.className = 'sources-title';
+                sourcesTitle.textContent = `📚 Sources (${sources.length})`;
+                sourcesDiv.appendChild(sourcesTitle);
+
+                sources.forEach(source => {
+                    const sourceItem = document.createElement('div');
+                    sourceItem.className = 'source-item';
+
+                    const sourceTitle = document.createElement('div');
+                    sourceTitle.className = 'source-title';
+                    sourceTitle.textContent = source.title;
+                    sourceItem.appendChild(sourceTitle);
+
+                    const sourceMeta = document.createElement('div');
+                    sourceMeta.className = 'source-meta';
+                    const metaParts = [];
+                    if (source.location) metaParts.push(source.location);
+                    if (source.date_start) metaParts.push(source.date_start);
+                    if (source.relevance_score) metaParts.push(`Score: ${source.relevance_score.toFixed(2)}`);
+                    sourceMeta.textContent = metaParts.join(' • ');
+                    sourceItem.appendChild(sourceMeta);
+
+                    sourcesDiv.appendChild(sourceItem);
+                });
+
+                contentDiv.appendChild(sourcesDiv);
+            }
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Add typing indicator
+        function addTypingIndicator() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message assistant';
+            messageDiv.id = 'typingIndicator';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = '🤖';
+
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message-content';
+
+            const indicator = document.createElement('div');
+            indicator.className = 'typing-indicator active';
+            indicator.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+
+            typingDiv.appendChild(indicator);
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(typingDiv);
+
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Remove typing indicator
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        // Send question to API
+        async function sendQuestion() {
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            // Clear welcome message if exists
+            const welcomeMsg = chatContainer.querySelector('.welcome-message');
+            if (welcomeMsg) welcomeMsg.remove();
+
+            // Add user message
+            addMessage(question, true);
+
+            // Clear input and disable
+            questionInput.value = '';
+            questionInput.disabled = true;
+            sendButton.disabled = true;
+
+            // Show typing indicator
+            addTypingIndicator();
+
+            try {
+                const response = await fetch('/api/v1/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: question,
+                        rag_method: methodSelector.value,
+                        top_k: 5
+                    })
+                });
+
+                removeTypingIndicator();
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    addMessage(`Erreur: ${error.detail || 'Une erreur est survenue'}`, false);
+                } else {
+                    const data = await response.json();
+                    addMessage(data.answer, false, data.sources);
+                }
+            } catch (error) {
+                removeTypingIndicator();
+                addMessage('Erreur de connexion au serveur. Veuillez réessayer.', false);
+            } finally {
+                questionInput.disabled = false;
+                sendButton.disabled = false;
+                questionInput.focus();
+            }
+        }
+
+        // Event listeners
+        sendButton.addEventListener('click', sendQuestion);
+        questionInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendQuestion();
+            }
+        });
+
+        // Check health on load
+        checkHealth();
+
+        // Focus input on load
+        questionInput.focus();
+    </script>
+</body>
+</html>

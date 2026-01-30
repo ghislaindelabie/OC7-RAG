@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  api:
+    # Pull pre-built image from GitHub Container Registry
+    image: ghcr.io/ghislaindelabie/oc7-rag:latest
+    container_name: oc7-rag-api
+    ports:
+      - "8000:8000"
+    environment:
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+    env_file:
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# Usage on server:
+# 1. docker compose -f docker-compose.prod.yml pull
+# 2. docker compose -f docker-compose.prod.yml up -d
+# 3. docker compose -f docker-compose.prod.yml logs -f
