@@ -1,0 +1,39 @@
+# Core RAG framework
+langchain>=0.3
+langchain-mistralai
+langchain-community
+
+# Vector store
+faiss-cpu
+
+# Environment and configuration
+python-dotenv
+
+# Data processing
+pandas
+ijson
+beautifulsoup4
+lxml
+
+# Utilities
+tqdm
+
+# Hybrid RAG components
+rank_bm25
+flashrank
+
+# API (added in v0.3.0)
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+pydantic>=2.0
+
+# Testing (dev)
+pytest>=8.0
+pytest-cov>=4.0
+pytest-asyncio>=0.23
+httpx>=0.26
+
+# Notebook support
+jupyter
+ipykernel
+ipywidgets

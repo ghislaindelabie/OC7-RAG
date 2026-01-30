@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Environment
+.env
+.env.*
+.venv
+venv/
+env/
+
+# Git
+.git/
+.github/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Documentation (except README)
+*.md
+!README.md
+
+# Project specific
+notebooks/
+tests/
+Documents de planification et cadrage/
+SESSION-COORDINATION.md
+.claude/
+.virtual_documents/
+
+# Data files - EXCLUDE RAW (we only need processed + index)
+data/raw/
+
+# Deployment scripts (not needed in container)
+deploy_to_server.sh
+scripts/deploy.sh
