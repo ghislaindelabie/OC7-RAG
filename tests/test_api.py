@@ -177,17 +177,62 @@ class TestAskEndpoint:
 
 
 # ============================================================================
-# Rebuild Endpoint Tests (Step 4 - placeholder)
+# Rebuild Endpoint Tests (Step 4)
 # ============================================================================
 
 class TestRebuildEndpoint:
     """Tests for POST /api/v1/rebuild endpoint."""
 
-    @pytest.mark.skip(reason="Endpoint not implemented yet - Step 4")
-    def test_rebuild_returns_success(self, client, sample_rebuild_request):
-        """Rebuild endpoint should return success status."""
+    def test_rebuild_returns_200(self, client, sample_rebuild_request):
+        """Rebuild endpoint should return 200 for valid request."""
         response = client.post("/api/v1/rebuild", json=sample_rebuild_request)
         assert response.status_code == status.HTTP_200_OK
+
+    def test_rebuild_response_structure(self, client, sample_rebuild_request):
+        """Rebuild endpoint should return proper response structure."""
+        response = client.post("/api/v1/rebuild", json=sample_rebuild_request)
+        data = response.json()
+
+        # Check required fields
+        assert "status" in data
+        assert "message" in data
+        assert "build_time_seconds" in data
+        assert "index_path" in data
+
+        # status should be one of: success, skipped, failed
+        assert data["status"] in ["success", "skipped", "failed"]
+
+    def test_rebuild_with_force_true(self, client):
+        """Rebuild endpoint should accept force=true."""
+        response = client.post(
+            "/api/v1/rebuild",
+            json={"force": True, "download_fresh_data": False}
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_rebuild_with_force_false(self, client):
+        """Rebuild endpoint should accept force=false."""
+        response = client.post(
+            "/api/v1/rebuild",
+            json={"force": False, "download_fresh_data": False}
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_rebuild_without_download(self, client):
+        """Rebuild endpoint should work without downloading fresh data."""
+        response = client.post(
+            "/api/v1/rebuild",
+            json={"force": False, "download_fresh_data": False}
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_rebuild_returns_503_when_service_not_ready(self, client_unhealthy):
+        """Rebuild endpoint should return 503 when service not initialized."""
+        response = client_unhealthy.post(
+            "/api/v1/rebuild",
+            json={"force": False, "download_fresh_data": False}
+        )
+        assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
 
 # ============================================================================
