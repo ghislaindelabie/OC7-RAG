@@ -12,7 +12,7 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import ValidationError
 
 from .rag_service import get_rag_service
@@ -65,7 +65,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Puls-Events RAG API",
     description="REST API for querying cultural events in Savoie, Haute-Savoie, and Isère using RAG",
-    version="0.3.0",
+    version="0.4.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
@@ -294,6 +294,23 @@ async def get_rag_info():
 
     info = rag_service.get_info()
     return RAGInfoResponse(**info)
+
+
+# ============================================================================
+# Chat Interface
+# ============================================================================
+
+@app.get("/")
+async def serve_chat_interface():
+    """
+    Serve the chat interface HTML page.
+
+    This provides a user-friendly web interface for querying the RAG system.
+    """
+    from pathlib import Path
+    static_dir = Path(__file__).parent / "static"
+    index_path = static_dir / "index.html"
+    return FileResponse(index_path)
 
 
 # ============================================================================
