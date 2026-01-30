@@ -11,7 +11,9 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 
 from .rag_service import get_rag_service
 from .schemas import (
@@ -298,10 +300,6 @@ async def get_rag_info():
 # Error Handlers
 # ============================================================================
 
-from fastapi.exceptions import RequestValidationError
-from pydantic import ValidationError
-
-
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc: RequestValidationError):
     """Handle Pydantic validation errors with user-friendly messages."""
@@ -361,7 +359,12 @@ async def global_exception_handler(request, exc):
 
     # Check if it's a Mistral API error (common third-party error)
     error_msg = str(exc)
-    if "mistral" in error_msg.lower() or "api" in error_msg.lower():
+    # Check for mistral-specific errors (module or error message contains "mistral")
+    is_mistral_error = (
+        "mistral" in error_msg.lower() or
+        (hasattr(exc, '__module__') and exc.__module__ and 'mistral' in exc.__module__.lower())
+    )
+    if is_mistral_error:
         return JSONResponse(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content=ErrorResponse(
