@@ -236,10 +236,20 @@ jupyter notebook notebooks/01_baseline_rag.ipynb
 # Execute cells 1-31, set RUN_FULL_EVALUATION = True in cell 28 for full test suite
 ```
 
-### Testing (Unit Tests - Planned)
+### Running Tests
 
 ```bash
-pytest tests/
+# Run all tests
+pytest tests/ -v
+
+# Run API tests only
+pytest tests/test_api.py -v
+
+# Run unit tests (indexation + retriever)
+pytest tests/test_indexation.py tests/test_retriever.py -v
+
+# Run with coverage
+pytest tests/ --cov=src --cov-report=term-missing
 ```
 
 ## Tech Stack
@@ -262,14 +272,14 @@ pytest tests/
 
 ### Test Dataset
 
-Located in `tests/test_data/test_questions.csv` with 18 annotated questions:
+Located in `tests/test_data/test_questions.csv` with 56 annotated questions:
 
 | Category | Count | Description |
 |----------|-------|-------------|
-| **Factual** | 10 | Direct questions about specific events |
-| **Complex** | 3 | Multi-criteria queries (location + type + audience) |
-| **Off-topic** | 3 | Questions unrelated to cultural events |
-| **Vague** | 2 | Incomplete questions requiring clarification |
+| **Factual** | 30+ | Direct questions about specific events |
+| **Complex** | 10+ | Multi-criteria queries (location + type + audience) |
+| **Off-topic** | 8+ | Questions unrelated to cultural events |
+| **Vague** | 8+ | Incomplete questions requiring clarification |
 
 ### LLM-as-Judge Evaluation
 
@@ -285,7 +295,7 @@ Located in `tests/test_data/test_questions.csv` with 18 annotated questions:
 ### Evaluation Results
 
 Run `notebooks/01_baseline_rag.ipynb` cells 24-31 to:
-- Execute all 18 test questions through 3 RAG methods
+- Execute all 56 test questions through 3 RAG methods
 - Generate automated verdicts with LLM judge
 - View statistics breakdown by category and difficulty
 - Export results to `evaluation_results/` directory
