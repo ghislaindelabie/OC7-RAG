@@ -223,18 +223,109 @@ class TestRAGInfoEndpoint:
 
 
 # ============================================================================
-# Error Handling Tests (Step 5 - placeholder)
+# Error Handling Tests (Step 5)
 # ============================================================================
 
 class TestErrorHandling:
     """Tests for error handling and edge cases."""
 
-    @pytest.mark.skip(reason="Will be implemented in Step 5")
-    def test_invalid_rag_method_returns_error(self, client):
-        """Invalid RAG method should return validation error."""
-        pass
+    def test_question_with_only_whitespace_returns_422(self, client):
+        """Question with only whitespace should return 422."""
+        response = client.post(
+            "/api/v1/ask",
+            json={"question": "   ", "rag_method": "hybrid"}
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        data = response.json()
+        assert "error" in data
+        assert data["error"] == "validation_error"
 
-    @pytest.mark.skip(reason="Will be implemented in Step 5")
-    def test_malformed_request_returns_422(self, client):
-        """Malformed request should return 422."""
-        pass
+    def test_question_with_repeated_characters_returns_422(self, client):
+        """Question with only repeated characters should return 422."""
+        response = client.post(
+            "/api/v1/ask",
+            json={"question": "aaaaaaaaa", "rag_method": "hybrid"}
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_question_too_long_returns_422(self, client):
+        """Question exceeding max length should return 422."""
+        long_question = "a" * 1001  # Max is 1000
+        response = client.post(
+            "/api/v1/ask",
+            json={"question": long_question, "rag_method": "hybrid"}
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_missing_question_field_returns_422(self, client):
+        """Request without question field should return 422."""
+        response = client.post(
+            "/api/v1/ask",
+            json={"rag_method": "hybrid"}
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_malformed_json_returns_422(self, client):
+        """Malformed JSON should return 422."""
+        response = client.post(
+            "/api/v1/ask",
+            data="not valid json",
+            headers={"Content-Type": "application/json"}
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_wrong_content_type_returns_422(self, client):
+        """Request with wrong content type should return 422."""
+        response = client.post(
+            "/api/v1/ask",
+            data="question=test",
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
+        )
+        # FastAPI will return 422 for content type mismatch
+        assert response.status_code in [status.HTTP_422_UNPROCESSABLE_ENTITY, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE]
+
+    def test_negative_top_k_returns_422(self, client):
+        """Negative top_k should return 422."""
+        response = client.post(
+            "/api/v1/ask",
+            json={"question": "Test question?", "rag_method": "hybrid", "top_k": -1}
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_top_k_zero_returns_422(self, client):
+        """Zero top_k should return 422."""
+        response = client.post(
+            "/api/v1/ask",
+            json={"question": "Test question?", "rag_method": "hybrid", "top_k": 0}
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_question_with_special_characters_accepted(self, client):
+        """Question with special characters should be accepted."""
+        response = client.post(
+            "/api/v1/ask",
+            json={"question": "Événement à l'été 2026?", "rag_method": "hybrid"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_question_with_numbers_accepted(self, client):
+        """Question with numbers should be accepted."""
+        response = client.post(
+            "/api/v1/ask",
+            json={"question": "Événements en janvier 2026?", "rag_method": "hybrid"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_error_response_has_proper_structure(self, client):
+        """Error responses should have consistent structure."""
+        response = client.post(
+            "/api/v1/ask",
+            json={"question": "ab"}  # Too short
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        data = response.json()
+
+        # Check error response structure
+        assert "error" in data
+        assert "message" in data
+        # detail is optional

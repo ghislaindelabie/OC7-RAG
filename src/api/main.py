@@ -242,16 +242,86 @@ async def get_rag_info():
 # Error Handlers
 # ============================================================================
 
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc: RequestValidationError):
+    """Handle Pydantic validation errors with user-friendly messages."""
+    errors = exc.errors()
+
+    # Extract field names and error messages
+    error_details = []
+    for error in errors:
+        field = " -> ".join(str(loc) for loc in error["loc"])
+        msg = error["msg"]
+        error_details.append(f"{field}: {msg}")
+
+    logger.warning(f"Validation error on {request.url.path}: {error_details}")
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content=ErrorResponse(
+            error="validation_error",
+            message="Invalid request data",
+            detail="; ".join(error_details)
+        ).model_dump(),
+    )
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request, exc: ValueError):
+    """Handle ValueError (e.g., invalid RAG method)."""
+    logger.warning(f"ValueError on {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content=ErrorResponse(
+            error="invalid_parameter",
+            message=str(exc),
+            detail=None
+        ).model_dump(),
+    )
+
+
+@app.exception_handler(RuntimeError)
+async def runtime_error_handler(request, exc: RuntimeError):
+    """Handle RuntimeError (e.g., service not ready)."""
+    logger.error(f"RuntimeError on {request.url.path}: {exc}")
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content=ErrorResponse(
+            error="service_unavailable",
+            message="Service temporarily unavailable",
+            detail=str(exc)
+        ).model_dump(),
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
     """Global exception handler for unhandled errors."""
-    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    logger.error(f"Unhandled exception on {request.url.path}: {exc}", exc_info=True)
+
+    # Check if it's a Mistral API error (common third-party error)
+    error_msg = str(exc)
+    if "mistral" in error_msg.lower() or "api" in error_msg.lower():
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content=ErrorResponse(
+                error="external_service_error",
+                message="External API error (LLM or embeddings)",
+                detail="The AI service is temporarily unavailable. Please try again later."
+            ).model_dump(),
+        )
+
+    # Generic error response
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content=ErrorResponse(
             error="internal_server_error",
             message="An unexpected error occurred",
-            detail=str(exc) if logger.level == logging.DEBUG else None
+            detail=str(exc) if os.getenv("DEBUG", "false").lower() == "true" else None
         ).model_dump(),
     )
 

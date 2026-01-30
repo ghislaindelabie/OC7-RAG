@@ -6,7 +6,7 @@ These schemas define the contract between the RAG API and its clients.
 
 from typing import List, Literal, Optional, Dict, Any
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 # ============================================================================
@@ -33,6 +33,23 @@ class QuestionRequest(BaseModel):
         le=20,
         description="Number of documents to retrieve"
     )
+
+    @field_validator('question')
+    @classmethod
+    def validate_question(cls, v: str) -> str:
+        """Validate and clean question input."""
+        # Strip whitespace
+        v = v.strip()
+
+        # Check if question is not just whitespace
+        if not v or v.isspace():
+            raise ValueError("Question cannot be empty or only whitespace")
+
+        # Check if question is meaningful (not just repeated characters)
+        if len(set(v.replace(" ", ""))) < 3:
+            raise ValueError("Question must contain meaningful text")
+
+        return v
 
     model_config = ConfigDict(
         json_schema_extra={
