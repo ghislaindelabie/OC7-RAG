@@ -73,23 +73,6 @@ app = FastAPI(
 
 
 # ============================================================================
-# Chat Interface
-# ============================================================================
-
-@app.get("/", include_in_schema=False)
-async def serve_chat_interface():
-    """
-    Serve the chat interface HTML page.
-
-    This provides a user-friendly web interface for querying the RAG system.
-    """
-    from pathlib import Path
-    static_dir = Path(__file__).parent / "static"
-    index_path = static_dir / "index.html"
-    return FileResponse(index_path)
-
-
-# ============================================================================
 # Health Check Endpoint
 # ============================================================================
 
@@ -311,6 +294,23 @@ async def get_rag_info():
 
     info = rag_service.get_info()
     return RAGInfoResponse(**info)
+
+
+# ============================================================================
+# Chat Interface
+# ============================================================================
+
+@app.get("/")
+async def serve_chat_interface():
+    """
+    Serve the chat interface HTML page.
+
+    This provides a user-friendly web interface for querying the RAG system.
+    """
+    from pathlib import Path
+    static_dir = Path(__file__).parent / "static"
+    index_path = static_dir / "index.html"
+    return FileResponse(index_path)
 
 
 # ============================================================================
