@@ -5,6 +5,7 @@ Provides REST API endpoints for querying cultural events using RAG.
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Optional

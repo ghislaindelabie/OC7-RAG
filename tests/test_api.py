@@ -250,7 +250,7 @@ class TestErrorHandling:
 
     def test_question_too_long_returns_422(self, client):
         """Question exceeding max length should return 422."""
-        long_question = "a" * 1001  # Max is 1000
+        long_question = "abc" * 334  # 1002 chars, varied to avoid repeated-char rejection
         response = client.post(
             "/api/v1/ask",
             json={"question": long_question, "rag_method": "hybrid"}
