@@ -129,16 +129,29 @@ jobs:
           sg docker "docker compose -f docker-compose.prod.yml up -d"
 
           # Wait for health check
-          echo "Waiting for API to be healthy..."
-          sleep 10
+          # Auto-rebuild can take up to 5 minutes (download + indexing + model download)
+          echo "Waiting for API to be healthy (auto-rebuild may take up to 5 minutes)..."
+          MAX_WAIT=300  # 5 minutes
+          ELAPSED=0
+          INTERVAL=10
+
+          while [ \$ELAPSED -lt \$MAX_WAIT ]; do
+            if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+              echo "✓ API is responding after \${ELAPSED}s"
+              break
+            fi
+            echo "Waiting... (\${ELAPSED}s/\${MAX_WAIT}s)"
+            sleep \$INTERVAL
+            ELAPSED=\$((ELAPSED + INTERVAL))
+          done
 
           # Verify deployment
           if curl -sf http://localhost:8000/health > /dev/null; then
             echo "✓ Deployment successful"
             curl -s http://localhost:8000/health | python3 -m json.tool
           else
-            echo "✗ Deployment failed - API not responding"
-            sg docker "docker compose -f docker-compose.prod.yml logs --tail=50"
+            echo "✗ Deployment failed - API not responding after \${MAX_WAIT}s"
+            sg docker "docker compose -f docker-compose.prod.yml logs --tail=100"
             exit 1
           fi
           ENDSSH
