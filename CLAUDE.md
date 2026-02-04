@@ -39,6 +39,86 @@ Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 4. **IMPORTANT**: PRs to `main` must be created but NEVER merged by Claude - user reviews and merges manually
 5. Tag created after merge: `v0.3.0`
 
+## Security Guidelines (CRITICAL)
+
+### Secret Management
+- **NEVER** expose secrets (API keys, passwords, tokens) in plain text:
+  - ❌ DON'T: `cat .env` (displays secrets)
+  - ❌ DON'T: `echo $MISTRAL_API_KEY` (displays secret value)
+  - ✅ DO: `test -f .env && echo "File exists"` (checks without displaying)
+  - ✅ DO: `printenv | grep -q MISTRAL_API_KEY && echo "Key is set"` (checks without displaying value)
+
+- **Check secret existence without exposing values**:
+  ```bash
+  # Good: Check if secret exists
+  ssh user@server 'grep -q "MISTRAL_API_KEY" .env && echo "✓ Key configured" || echo "✗ Key missing"'
+
+  # Good: Verify environment variable is set (without value)
+  ssh user@server 'docker exec container printenv | grep -q MISTRAL_API_KEY && echo "✓ Set"'
+
+  # Bad: Exposes the actual key value
+  ssh user@server 'cat .env'  # DON'T DO THIS
+  ```
+
+- **If a secret is accidentally exposed**:
+  1. Immediately inform the user
+  2. Mark the secret as compromised
+  3. Provide rotation instructions
+  4. Document in project (e.g., `docs/KNOWN_ISSUES.md`)
+
+### Environment Variables
+- Secrets stored in `.env` files (NEVER commit to git)
+- `.env` is in `.gitignore` - verify before any git operations
+- GitHub Actions secrets managed via repository Settings → Secrets
+- Container secrets passed via docker-compose `env_file` or `environment`
+
+### Server Deployment Policy
+
+**CRITICAL**: NEVER patch code or configuration directly on production server.
+
+**Wrong approach** ❌:
+```bash
+# DON'T: Direct editing on server
+ssh user@server 'nano ~/app/config.py'
+ssh user@server 'docker exec container sed -i "s/old/new/" /app/file.py'
+```
+
+**Correct approach** ✅:
+```bash
+# 1. Create hotfix branch from main
+git checkout main
+git pull
+git checkout -b hotfix/fix-download-timeout
+
+# 2. Make changes locally
+edit src/api/rag_service.py
+
+# 3. Test locally
+docker build -t test .
+docker run test
+
+# 4. Commit and push
+git add src/api/rag_service.py
+git commit -m "fix: increase download timeout to 600s"
+git push origin hotfix/fix-download-timeout
+
+# 5. Create PR and merge to main (user reviews)
+# 6. CI/CD automatically deploys to server
+```
+
+**Exception**: Emergency debugging only (read-only operations):
+- Viewing logs: `docker compose logs`
+- Checking status: `docker ps`, `curl /health`
+- Testing connectivity: `curl`, `ping`
+
+**No exceptions for**:
+- Modifying code files
+- Changing configuration
+- Installing packages
+- Editing docker-compose.yml on server
+
+All changes MUST go through Git → PR → CI/CD pipeline.
+
 ## Code Style
 - Follow existing patterns in `notebooks/01_baseline_rag.ipynb`
 - Use type hints for function signatures

@@ -5,6 +5,22 @@ Filter large OpenAgenda events JSON file to keep only:
 - Events starting from 2023-01-01 onwards
 
 Uses streaming JSON parsing (ijson) to handle large files efficiently.
+
+DEPRECATION NOTE (v0.4.1+):
+    This script is now largely obsolete for production use. The RAG service
+    (src/api/rag_service.py) downloads pre-filtered data directly from the
+    OpenDataSoft API using the 'where' parameter, which:
+    - Reduces download size from 4GB to ~72MB (98% reduction)
+    - Reduces download time from 5+ minutes to ~11 seconds
+    - Filters by department at the API level
+
+    This script remains useful for:
+    - Manual data exploration
+    - Processing locally downloaded full datasets
+    - Testing/development scenarios
+
+    For production deployments, use the auto-rebuild feature which handles
+    filtering automatically.
 """
 
 import json
