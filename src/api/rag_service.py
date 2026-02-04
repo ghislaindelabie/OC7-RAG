@@ -164,6 +164,24 @@ class RAGService:
         # Try to load components
         try:
             self._load_components()
+
+            # Auto-rebuild if index not found but LLM is available
+            if not self._index_loaded and self._llm_available:
+                auto_rebuild = os.getenv("AUTO_REBUILD_INDEX", "true").lower() == "true"
+                if auto_rebuild:
+                    logger.info("Index not found - triggering auto-rebuild...")
+                    try:
+                        result = self.rebuild_index(force=True, download_fresh_data=True)
+                        if result.get("status") == "success":
+                            logger.info(f"Auto-rebuild complete: {result.get('events_indexed')} events indexed")
+                        else:
+                            logger.warning(f"Auto-rebuild returned: {result.get('status')}")
+                    except Exception as rebuild_error:
+                        logger.error(f"Auto-rebuild failed: {rebuild_error}")
+                        logger.warning("Service will start in degraded mode - call POST /rebuild manually")
+                else:
+                    logger.info("Auto-rebuild disabled (AUTO_REBUILD_INDEX=false)")
+
             logger.info("RAG Service initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize RAG Service: {e}")

@@ -9,6 +9,7 @@ services:
       - "8000:8000"
     environment:
       - MISTRAL_API_KEY=${MISTRAL_API_KEY}
+      - AUTO_REBUILD_INDEX=true
     env_file:
       - .env
     restart: unless-stopped
@@ -17,4 +18,4 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 300s  # Extended for auto-rebuild on first start
