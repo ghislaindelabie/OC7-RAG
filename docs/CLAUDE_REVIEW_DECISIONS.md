@@ -18,15 +18,22 @@ Claude Review provided comprehensive feedback on PR #19 with 1 required fix and 
 
 **Issue**: `requests` is imported in `rag_service.py` but not explicitly listed in `requirements.txt`
 
-**Decision**: **FIXED** ✅
+**Decision**: **FIXED** ✅ (with clarification)
 
 **Action taken**:
 ```diff
 + # HTTP client (for data download in auto-rebuild)
++ # Note: Also a transitive dependency via langchain-community (requests<3.0.0,>=2.32.5)
++ # Declared explicitly because we import it directly in rag_service.py
 + requests>=2.28.0
 ```
 
-**Rationale**: While `requests` may be included as a transitive dependency, explicit declaration prevents future breakage and makes dependencies clear.
+**Rationale**:
+- `requests` IS already a transitive dependency via `langchain-community` (requires `requests<3.0.0,>=2.32.5`)
+- HOWEVER, we import it directly in our code (`rag_service.py:14`)
+- **Best practice**: Direct imports should be direct dependencies (PEP 508)
+- **Benefit**: Makes dependency explicit, prevents silent breakage if langchain-community changes
+- **Comment added**: Acknowledges it's also transitive to prevent confusion
 
 **Commit**: Included in this commit
 

@@ -16,6 +16,8 @@ beautifulsoup4
 lxml
 
 # HTTP client (for data download in auto-rebuild)
+# Note: Also a transitive dependency via langchain-community (requests<3.0.0,>=2.32.5)
+# Declared explicitly because we import it directly in rag_service.py
 requests>=2.28.0
 
 # Utilities
