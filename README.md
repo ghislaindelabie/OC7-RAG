@@ -166,7 +166,7 @@ docker run -d \
 - **Multi-stage build**: Optimized image size (~2GB)
 - **Non-root user**: Security best practice
 - **Health checks**: Container orchestration ready
-- **Baked-in data**: FAISS index included in image
+- **Auto-rebuild**: FAISS index built on first startup, persisted via volumes
 
 ### Testing the Container
 

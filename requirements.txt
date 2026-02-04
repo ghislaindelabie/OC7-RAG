@@ -15,6 +15,9 @@ ijson
 beautifulsoup4
 lxml
 
+# HTTP client (for data download in auto-rebuild)
+requests>=2.28.0
+
 # Utilities
 tqdm
 
