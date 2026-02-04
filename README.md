@@ -296,9 +296,29 @@ Run `notebooks/01_baseline_rag.ipynb` cells 24-31 to:
 
 ## Documentation
 
-- Technical implementation in `notebooks/01_baseline_rag.ipynb`
-- Evaluation framework: notebook cells 24-31
-- [Technical Report](docs/technical_report.pdf) - Coming soon
+### Core Documentation (Root)
+- **README.md** (this file) - Main project documentation
+- **DEPLOYMENT_STATUS.md** - Deployment guide and server status
+- **VERSION_HISTORY.md** - Complete version changelog
+- **CLAUDE.md** - Development guidelines and git rules
+- **PROJECT_FINALIZATION_PLAN.md** - Finalization roadmap
+
+### Technical Reference
+- **[Setup Guide](docs/reference/SETUP.md)** - Local and server setup instructions
+- **[Dependencies](docs/reference/DEPENDENCY_MANAGEMENT.md)** - Dependency management strategy
+- **[Chat Interface](docs/reference/CHATBOT_INTERFACE.md)** - Web interface documentation
+
+### Implementation Details
+- **Technical implementation**: `notebooks/01_baseline_rag.ipynb` (cells 1-23: RAG system)
+- **Evaluation framework**: `notebooks/01_baseline_rag.ipynb` (cells 24-31: LLM-as-Judge)
+- **Technical Report**: `docs/technical_report.pdf` - Coming soon
+
+### Future Enhancements
+- **[Vector Store Migration](docs/future/VECTOR_STORE_MIGRATION.md)** - Chroma/Qdrant migration guide
+- **[API Authentication](docs/future/API_AUTHENTICATION.md)** - Authentication implementation guide
+
+### Historical Records
+See `docs/archive/` for session summaries and completion reports.
 
 ## License
 

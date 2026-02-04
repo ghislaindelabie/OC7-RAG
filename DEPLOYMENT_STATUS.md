@@ -1,7 +1,8 @@
-# Deployment Status - OC7 RAG API
+# Deployment Status & Guide - OC7 RAG API
 
-> **Last Updated**: 2026-01-30 17:30 CET
+> **Last Updated**: 2026-02-04
 > **Current Status**: ✅ v0.4.0 - Docker CI/CD + Web Chat Interface
+> **Deployment Method**: 🐳 Docker Compose (Recommended)
 
 ---
 
@@ -11,15 +12,15 @@
 - **Host**: hetzner3-oc7api (2a01:4f8:c2c:5fbe::1)
 - **User**: oc7api (dedicated, minimal permissions)
 - **Location**: `/home/oc7api/oc7-rag-docker`
-- **Python**: 3.12.3
+- **Python**: 3.12.3 (in Docker container)
 - **Docker**: 29.1.3 + Compose v5.0.0
 - **Port**: 8000
 
 ### Current Deployment
-- **Method**: Docker container (manual deployment tested)
-- **Image**: oc7-rag-api:latest (1.45GB)
+- **Method**: 🐳 **Docker container** (CI/CD via GitHub Actions)
+- **Image**: `ghcr.io/ghislaindelabie/oc7-rag-api:latest` (1.45GB)
 - **Status**: Running, healthy
-- **Index Loaded**: Yes ✓
+- **Index Loaded**: Yes ✓ (auto-rebuilt on first start)
 - **LLM Available**: Yes ✓
 - **Health Check**: http://localhost:8000/health (accessible from server)
 
@@ -43,9 +44,95 @@ ssh hetzner3-oc7api 'kill $(cat ~/oc7-rag/api.pid) && cd ~/oc7-rag && source ven
 
 ---
 
-## Deployment Scripts
+## Deployment Methods
 
-### Manual Deployment
+### 🐳 Method 1: Docker Deployment (Recommended)
+
+**Current deployment method** - Uses Docker Compose for consistent, reproducible deployments.
+
+#### Quick Start
+```bash
+# Clone/pull latest code on server
+ssh hetzner3-oc7api
+cd ~/oc7-rag-docker
+git pull
+
+# Start with Docker Compose
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Check status
+docker compose ps
+curl http://localhost:8000/health
+```
+
+#### Production Deployment (GHCR)
+```bash
+# Using production compose file (pulls pre-built image from GitHub Container Registry)
+cd ~/oc7-rag-docker
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml logs --tail=50
+```
+
+#### Docker Features
+- **Auto-rebuild**: Downloads data and builds FAISS index on first start (~3-5 min)
+- **Persistent volumes**: Data survives container restarts
+- **Health checks**: Container orchestration ready
+- **Multi-stage build**: Optimized image size (1.45GB)
+- **Non-root user**: Security best practice
+
+#### Environment Variables
+```bash
+# Required
+MISTRAL_API_KEY=your-mistral-api-key
+
+# Optional
+AUTO_REBUILD_INDEX=true  # Auto-rebuild if index missing (default: true)
+```
+
+---
+
+### 🚀 Method 2: CI/CD Deployment (Automated)
+
+**Automatic deployment** on push to `main` branch via GitHub Actions.
+
+#### Workflow
+```
+Push to main → Tests → Build Docker image → Push to GHCR → Deploy to server
+```
+
+#### GitHub Secrets Required
+- `HETZNER_HOST`: hetzner3-oc7api
+- `HETZNER_USER`: oc7api
+- `HETZNER_SSH_KEY`: Private SSH key content
+- `MISTRAL_API_KEY`: Mistral API key
+
+#### Workflow File
+`.github/workflows/deploy.yml` - Handles test → build → push → deploy pipeline
+
+#### Trigger Deployment
+1. **Automatic**: Push/merge to `main` branch
+2. **Manual**: GitHub Actions tab → "Deploy to Hetzner Server" → "Run workflow"
+
+#### Monitor Deployment
+```bash
+# View GitHub Actions logs in browser
+# Or check server directly:
+ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && docker compose logs --tail=100'
+```
+
+---
+
+### 📦 Method 3: Legacy Manual Deployment (Deprecated)
+
+> **Note**: This method is deprecated. Use Docker deployment instead.
+
+<details>
+<summary>Click to expand legacy manual deployment instructions</summary>
+
 ```bash
 # Interactive
 ./deploy_to_server.sh hetzner3-oc7api oc7api
@@ -57,27 +144,37 @@ export MISTRAL_API_KEY='your_key'
 ./scripts/deploy.sh
 ```
 
-### Docker Deployment (NEW in v0.4.0)
-```bash
-# Manual Docker deployment
-cd ~/oc7-rag-docker
-docker compose up -d
-docker compose logs -f
+This method deploys without Docker using Python venv. **Not recommended for new deployments.**
 
-# Using production compose (pulls from GHCR)
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
+</details>
+
+---
+
+## Deployment Architecture
+
+### Single Source of Truth Pattern
+
+```
+Manual Docker              CI/CD (GitHub Actions)
+     │                              │
+     │                              │
+     ▼                              ▼
+docker compose up        .github/workflows/deploy.yml
+     │                              │
+     │                              │
+     └──────────────┬───────────────┘
+                    │
+                    ▼
+         Dockerfile + docker-compose.yml
+          (SINGLE SOURCE OF TRUTH)
 ```
 
-### CI/CD Deployment
-- **Workflow**: `.github/workflows/deploy.yml`
-- **Trigger**: Push to `main` branch
-- **Status**: Configured and ready
-- **GitHub Secrets needed**:
-  - `HETZNER_HOST`: hetzner3-oc7api
-  - `HETZNER_USER`: oc7api
-  - `HETZNER_SSH_KEY`: Private key content
-  - `MISTRAL_API_KEY`: Mistral API key
+**Benefits**:
+- ✅ Consistent deployments across environments
+- ✅ Reproducible builds (Docker image)
+- ✅ Version-controlled configuration
+- ✅ Easy rollback (previous image tags)
+- ✅ Isolated dependencies
 
 ---
 
@@ -181,13 +278,87 @@ open http://localhost:8000  # Chat interface
 
 ---
 
-## Known Issues
+## Troubleshooting
 
-### External Access
+### Docker-Specific Issues
+
+**Container fails to start**:
+```bash
+# Check logs
+docker compose logs
+
+# Check if port already in use
+sudo lsof -i :8000
+
+# Restart container
+docker compose down
+docker compose up -d
+```
+
+**Index not building**:
+```bash
+# Check AUTO_REBUILD_INDEX is set to true
+docker compose config | grep AUTO_REBUILD_INDEX
+
+# Check logs for download/build errors
+docker compose logs --tail=100 | grep -i error
+
+# Manual rebuild (inside container)
+docker compose exec oc7-rag-api python scripts/rebuild_index.py
+```
+
+**Out of disk space**:
+```bash
+# Check Docker disk usage
+docker system df
+
+# Clean up old images/containers
+docker system prune -a
+
+# Check volume size
+docker volume inspect oc7-rag-docker_oc7-rag-data
+```
+
+### CI/CD Issues
+
+**GitHub Actions fails**:
+1. Check GitHub Secrets are configured correctly
+2. Verify SSH key has access: `ssh -i <key> oc7api@hetzner3-oc7api`
+3. Check workflow logs in GitHub Actions tab
+4. Verify server has enough disk space
+
+**Image push fails**:
+- Check GitHub Container Registry permissions
+- Verify `GITHUB_TOKEN` has package write access
+
+### General Issues
+
+**Health check returns unhealthy**:
+```bash
+# Check if index loaded
+curl http://localhost:8000/health | python3 -m json.tool
+
+# Check container logs
+docker compose logs --tail=50
+
+# Check MISTRAL_API_KEY is set
+docker compose exec oc7-rag-api env | grep MISTRAL
+```
+
+**External Access**:
 - **Issue**: Port 8000 not accessible from outside
-- **Cause**: Not firewall (UFW disabled) - likely Hetzner network/IPv6
-- **Workaround**: SSH tunnel or setup nginx reverse proxy
-- **Priority**: Low (API accessible from server)
+- **Cause**: Not firewall (UFW disabled) - likely Hetzner network/IPv6 configuration
+- **Workaround**: SSH tunnel (secure) or setup nginx reverse proxy (for public access)
+- **Priority**: Low (API accessible from server, SSH tunnel works)
+
+**SSH tunnel for local access**:
+```bash
+# Create tunnel
+ssh -L 8000:localhost:8000 hetzner3-oc7api
+
+# Then open browser
+open http://localhost:8000
+```
 
 ---
 
@@ -244,48 +415,97 @@ open http://localhost:8000  # Chat interface
 
 ## Quick Reference
 
-### Useful Commands
-```bash
-# Deploy
-./deploy_to_server.sh hetzner3-oc7api oc7api
+### 🐳 Docker Commands (Current)
 
-# Check API status
-ssh hetzner3-oc7api 'ps aux | grep python | grep api'
+```bash
+# Start container
+ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && docker compose up -d'
+
+# Stop container
+ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && docker compose down'
+
+# Restart container
+ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && docker compose restart'
 
 # View logs (last 50 lines)
-ssh hetzner3-oc7api 'tail -50 ~/oc7-rag/api.log'
+ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && docker compose logs --tail=50'
 
 # Follow logs live
-ssh hetzner3-oc7api 'tail -f ~/oc7-rag/api.log'
+ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && docker compose logs -f'
 
-# Stop API
-ssh hetzner3-oc7api 'kill $(cat ~/oc7-rag/api.pid)'
+# Check container status
+ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && docker compose ps'
 
-# Get API PID
-ssh hetzner3-oc7api 'cat ~/oc7-rag/api.pid'
+# Execute command in container
+ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && docker compose exec oc7-rag-api <command>'
 
-# Check disk usage
-ssh hetzner3-oc7api 'du -sh ~/oc7-rag'
+# Rebuild and restart (force fresh build)
+ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && docker compose up -d --build --force-recreate'
 
-# Test health endpoint
-ssh hetzner3-oc7api 'curl -s localhost:8000/health'
-
-# Docker commands
-ssh hetzner3-oc7api 'sg docker "docker ps"'
-ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && sg docker "docker compose logs --tail=50"'
+# Remove volumes (fresh start)
+ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && docker compose down -v && docker compose up -d'
 ```
 
-### Documentation Files
-- `SETUP.md` - Local + server setup instructions
-- `DEPLOYMENT.md` - Deployment architecture & consistency
-- `QUICK_START_DEPLOYMENT.md` - Quick guide for deployment
-- `SERVER_TEST.md` - Server testing guide
-- `DEPENDENCY_MANAGEMENT.md` - Dependency strategy
-- `CHATBOT_INTERFACE.md` - Web chat interface guide
-- `API_AUTHENTICATION.md` - Future authentication guide
-- `deploy_to_server.sh` - Manual deployment wrapper
-- `scripts/deploy.sh` - Core deployment script
+### 🧪 Testing Commands
+
+```bash
+# Test health endpoint
+ssh hetzner3-oc7api 'curl -s localhost:8000/health | python3 -m json.tool'
+
+# Test chat interface (via SSH tunnel)
+ssh -L 8000:localhost:8000 hetzner3-oc7api
+# Then: open http://localhost:8000
+
+# Test RAG query
+ssh hetzner3-oc7api 'curl -X POST http://localhost:8000/api/v1/ask -H "Content-Type: application/json" -d "{\"question\": \"Concerts à Chambéry?\"}"'
+
+# Check API info
+ssh hetzner3-oc7api 'curl -s localhost:8000/api/v1/rag/info | python3 -m json.tool'
+```
+
+### 🔧 Maintenance Commands
+
+```bash
+# Check disk usage
+ssh hetzner3-oc7api 'df -h'
+ssh hetzner3-oc7api 'docker system df'
+
+# Clean up Docker
+ssh hetzner3-oc7api 'docker system prune -a'
+
+# Check Docker images
+ssh hetzner3-oc7api 'docker images | grep oc7-rag'
+
+# Pull latest image
+ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && docker compose pull'
+
+# Update and restart
+ssh hetzner3-oc7api 'cd ~/oc7-rag-docker && git pull && docker compose pull && docker compose up -d'
+```
+
+### Documentation
+
+**This File**: Consolidated deployment guide (merged from DEPLOYMENT.md, QUICK_START_DEPLOYMENT.md, SERVER_TEST.md)
+
+**Related Documentation**:
+- `README.md` - Main project documentation
+- `VERSION_HISTORY.md` - Version changelog
+- `PROJECT_FINALIZATION_PLAN.md` - Finalization roadmap
+- `docs/reference/` - Technical reference docs
+  - `SETUP.md` - Local + server setup
+  - `DEPENDENCY_MANAGEMENT.md` - Dependency strategy
+  - `CHATBOT_INTERFACE.md` - Web interface guide
+- `docs/future/` - Future enhancements
+  - `API_AUTHENTICATION.md` - Authentication guide
+  - `VECTOR_STORE_MIGRATION.md` - Vector store migration
+
+**Deployment Files**:
+- `Dockerfile` - Multi-stage Docker build
+- `docker-compose.yml` - Local/dev deployment
+- `docker-compose.prod.yml` - Production deployment (GHCR)
+- `.dockerignore` - Build context exclusions
 - `.github/workflows/deploy.yml` - CI/CD workflow
+- `deploy_to_server.sh` - Legacy manual deployment (deprecated)
 
 ---
 
