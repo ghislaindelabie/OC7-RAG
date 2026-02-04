@@ -161,7 +161,7 @@ No migration needed - change is backward compatible. Existing index data remains
 
 During troubleshooting, the Mistral API key was exposed in plain text when checking `.env` file contents.
 
-**Exposed key**: `KuytUThgk4A46mvy5kWjIUg3mPegfhUR`
+**Impact**: API key compromised and requires rotation.
 
 ### Required Actions
 

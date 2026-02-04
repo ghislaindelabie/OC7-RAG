@@ -15,6 +15,7 @@ import requests
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
+from urllib.parse import urlencode
 
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
@@ -120,6 +121,13 @@ class RAGService:
 
     Manages FAISS index, retrievers, and LLM for the API.
     """
+
+    # Target geographic departments for event filtering
+    TARGET_DEPARTMENTS = ["Savoie", "Haute-Savoie", "Isère"]
+
+    # Download timeout configuration (seconds)
+    CONNECT_TIMEOUT = 10  # Max time to establish connection
+    READ_TIMEOUT = 60     # Max silence between chunks
 
     _instance = None
 
@@ -375,27 +383,31 @@ class RAGService:
         Raises:
             RuntimeError: If download fails or response is not valid JSON
         """
-        # Target departments for the RAG system
-        target_departments = ["Savoie", "Haute-Savoie", "Isère"]
-
         # Build API URL with department filter
         # OpenDataSoft API v2.1 supports 'where' clause for server-side filtering
         # Format: where=location_department in ("Savoie","Haute-Savoie","Isère")
         base_url = "https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/evenements-publics-openagenda/exports/json"
-        dept_filter = ",".join([f'"{dept}"' for dept in target_departments])
+        dept_filter = ",".join([f'"{dept}"' for dept in self.TARGET_DEPARTMENTS])
         where_clause = f"location_department in ({dept_filter})"
-        api_url = f"{base_url}?where={where_clause}"
+
+        # Use urlencode for proper URL parameter encoding
+        params = {"where": where_clause}
 
         logger.info(f"Downloading filtered data from OpenDataSoft...")
-        logger.info(f"  Target departments: {', '.join(target_departments)}")
-        logger.info(f"  API URL: {api_url}")
+        logger.info(f"  Target departments: {', '.join(self.TARGET_DEPARTMENTS)}")
+        logger.info(f"  Filter: {where_clause}")
 
         try:
             # Download with streaming to handle large files
             # Timeout: (connect_timeout, read_timeout)
-            # - 10s to establish connection
-            # - 60s max silence between chunks (server stall protection)
-            response = requests.get(api_url, stream=True, timeout=(10, 60))
+            # - CONNECT_TIMEOUT: Max time to establish connection
+            # - READ_TIMEOUT: Max silence between chunks (server stall protection)
+            response = requests.get(
+                base_url,
+                params=params,
+                stream=True,
+                timeout=(self.CONNECT_TIMEOUT, self.READ_TIMEOUT)
+            )
             response.raise_for_status()
 
             # Save to temporary file first (atomic write)
@@ -421,6 +433,9 @@ class RAGService:
             logger.info(f"  Downloaded {event_count:,} events (filtered by department at API level)")
             return event_count
 
+        except requests.exceptions.Timeout as e:
+            logger.error(f"Download timeout after {self.CONNECT_TIMEOUT}s connect / {self.READ_TIMEOUT}s read: {e}")
+            raise RuntimeError(f"Download timed out. The API may be slow or unavailable. Try again later.")
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to download data: {e}")
             raise RuntimeError(f"Failed to download data from OpenDataSoft: {e}")
@@ -669,7 +684,7 @@ class RAGService:
             Dictionary with system information
         """
         return {
-            "version": "0.3.0",
+            "version": "0.4.1",
             "available_methods": ["basic", "hybrid", "advanced"],
             "index_info": {
                 "documents_count": self.get_index_size() or 0,
