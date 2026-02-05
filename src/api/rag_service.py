@@ -685,7 +685,7 @@ class RAGService:
             Dictionary with system information
         """
         return {
-            "version": "0.4.1",
+            "version": "1.1.0",
             "available_methods": ["basic", "hybrid", "advanced"],
             "index_info": {
                 "documents_count": self.get_index_size() or 0,

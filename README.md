@@ -1,6 +1,6 @@
 # OC7-RAG: Cultural Events Recommendation Assistant 🎭
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](VERSION_HISTORY.md)
+[![Version](https://img.shields.io/badge/version-1.1-blue.svg)](VERSION_HISTORY.md)
 [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://www.python.org/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)

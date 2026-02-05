@@ -33,9 +33,9 @@ ERROR: MISTRAL_API_KEY environment variable not set
    ls -la .env
    ```
 
-2. Verify file format:
+2. Verify file format (check without exposing the key):
    ```bash
-   cat .env  # Should show: MISTRAL_API_KEY=your_key_here
+   grep -q "MISTRAL_API_KEY=" .env && echo "Key found" || echo "Key missing"
    ```
 
 3. Check key format (no spaces, no quotes):
