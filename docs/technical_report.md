@@ -2,9 +2,10 @@
 
 **Project**: Puls-Events RAG - Intelligent Chatbot POC
 **Author**: Ghislain de Labie
-**Institution**: OpenClassrooms - Data Science Path
+**Institution**: OpenClassrooms - AI Engineer (Master-level accredited degree)
 **Date**: February 2026
 **Version**: 1.0
+**License**: Apache License 2.0
 
 ---
 
@@ -16,10 +17,10 @@ This report presents the design, implementation, and evaluation of a production-
 
 - **Three RAG Implementations**: Basic (baseline), Hybrid (FAISS + BM25), and Advanced (with query analysis and reranking)
 - **Production REST API**: 4 endpoints with comprehensive error handling and validation
-- **Rigorous Testing**: 77 unit tests (100% passing) and 56 annotated evaluation questions
+- **Rigorous Testing**: 87 unit tests (100% passing) and 56 annotated evaluation questions
 - **Automated Evaluation**: LLM-as-Judge framework with Chain-of-Thought reasoning
 - **Full CI/CD Pipeline**: Docker containerization with GitHub Actions automation
-- **8,547 Events Indexed**: Complete dataset from OpenAgenda covering target departments
+- **10,648 Events Indexed**: Complete dataset from OpenAgenda covering target departments
 
 ### Technical Stack
 
@@ -33,14 +34,14 @@ This report presents the design, implementation, and evaluation of a production-
 | API Framework | FastAPI + Uvicorn |
 | Containerization | Docker + Docker Compose |
 | Orchestration | LangChain |
-| Testing | pytest (77 tests) |
+| Testing | pytest (87 tests) |
 | Evaluation | LLM-as-Judge (mistral-large) |
 
 ### Key Results
 
 - **Best Robustness**: Basic RAG achieved 66.7% PASS rate with 0% failures
 - **API Performance**: All endpoints respond < 2 seconds for typical queries
-- **Test Coverage**: 77 comprehensive tests covering all components
+- **Test Coverage**: 87 comprehensive tests covering all components
 - **Deployment**: Production-ready with automated CI/CD pipeline
 
 ---
@@ -81,7 +82,7 @@ Develop a proof-of-concept intelligent chatbot that:
 - Structured data with geographic coordinates, dates, descriptions
 - Filter applied: `location_department IN ('Savoie', 'Haute-Savoie', 'Isère')`
 - Events filtered: Date ≥ 2023 (to ensure relevance)
-- **Final dataset**: 8,547 events
+- **Final dataset**: 10,648 events
 
 ### 1.5 Success Criteria
 
@@ -359,7 +360,7 @@ Rules:
 {
     "status": "healthy",
     "index_loaded": true,
-    "index_size": 8547,
+    "index_size": 10648,
     "llm_available": true,
     "timestamp": "2026-02-04T10:30:00Z"
 }
@@ -377,7 +378,7 @@ Rules:
 **Response Schema**:
 ```json
 {
-    "index_size": 8547,
+    "index_size": 10648,
     "embedding_model": "mistral-embed",
     "llm_model": "mistral-small-latest",
     "available_methods": ["basic", "hybrid", "advanced"],
@@ -443,7 +444,7 @@ Rules:
 ```json
 {
     "status": "success",
-    "events_indexed": 8547,
+    "events_indexed": 10648,
     "build_time_seconds": 187.3,
     "index_path": "/app/data/index/faiss_baseline"
 }
@@ -684,7 +685,7 @@ Respond in JSON format:
 
 ### 5.1 Test Coverage
 
-**Total Tests**: 77 (100% passing)
+**Total Tests**: 87 (100% passing)
 
 **Breakdown**:
 - **31 API tests** (`tests/test_api.py`)
@@ -917,7 +918,7 @@ def _load_components(self):
 **1. Test**:
 - Checkout code
 - Install dependencies
-- Run pytest (77 tests)
+- Run pytest (87 tests)
 - Fail pipeline if any test fails
 
 **2. Build**:
@@ -1126,7 +1127,7 @@ def rebuild_index(self):
 - In-memory (not suitable for very large datasets)
 - No built-in filtering (must filter after retrieval)
 
-**Decision**: FAISS sufficient for POC (8,547 events), migrate to Chroma/Qdrant if scaling beyond 100k events
+**Decision**: FAISS sufficient for POC (10,648 events), migrate to Chroma/Qdrant if scaling beyond 100k events
 
 ### 8.4 Why FastAPI?
 
@@ -1210,7 +1211,7 @@ def rebuild_index(self):
 This project successfully implemented a production-ready RAG system for cultural event recommendations with:
 
 1. **Three RAG Methods**: Progressive sophistication from basic to advanced
-2. **Rigorous Evaluation**: 56 annotated questions, LLM-as-Judge, 77 unit tests
+2. **Rigorous Evaluation**: 56 annotated questions, LLM-as-Judge, 87 unit tests
 3. **Production API**: 4 endpoints, comprehensive error handling, OpenAPI docs
 4. **Full CI/CD**: Docker, GitHub Actions, automated deployment
 5. **Comprehensive Documentation**: 6 core docs, 8 reference docs, 4 archived
@@ -1219,13 +1220,13 @@ This project successfully implemented a production-ready RAG system for cultural
 
 1. **Simpler is Often Better**: Basic RAG had best robustness (0% failures)
 2. **Off-Topic Detection is Hard**: LLM-based query analysis unreliable without fine-tuning
-3. **Test-Driven Development Works**: 77 tests written alongside features prevented regressions
+3. **Test-Driven Development Works**: 87 tests written alongside features prevented regressions
 4. **Docker Simplifies Deployment**: Single source of truth (Dockerfile) for all environments
 
 ### 10.3 Production Readiness
 
 **The system is production-ready** with:
-- ✅ 100% test passing rate (77 tests)
+- ✅ 100% test passing rate (87 tests)
 - ✅ Automated CI/CD pipeline
 - ✅ Docker containerization with health checks
 - ✅ Error handling and validation
@@ -1311,10 +1312,10 @@ OC7-RAG/
 
 | Metric | Value |
 |--------|-------|
-| Events Indexed | 8,547 |
+| Events Indexed | 10,648 |
 | Geographic Coverage | 3 departments (73, 74, 38) |
 | Test Questions | 56 annotated |
-| Unit Tests | 77 (100% passing) |
+| Unit Tests | 87 (100% passing) |
 | API Endpoints | 4 |
 | RAG Methods | 3 |
 | Avg Response Time | 1-4 seconds (method-dependent) |
