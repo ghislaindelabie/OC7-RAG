@@ -36,10 +36,13 @@ Welcome! This project showcases a complete, production-ready RAG system that hel
 - [Known Issues](docs/KNOWN_ISSUES.md) - Current limitations and workarounds
 - [HTTPS Setup](docs/HTTPS_SETUP.md) - SSL certificate configuration guide
 
-🚀 **Live Deployment**
-- Production API: `http://188.34.205.146:8000` (Docker + CI/CD)
-- API Documentation: `http://188.34.205.146:8000/docs` (Interactive OpenAPI)
-- Web Chat Interface: `http://188.34.205.146:8000/` (Try it now!)
+🚀 **Live Deployment** (Hetzner Cloud - Docker + CI/CD)
+- **Web Chat Interface**: http://188.34.205.146:8000/ - Interactive chat UI
+- **API Base URL**: http://188.34.205.146:8000
+  - Main endpoint: `POST /api/v1/ask` - Submit questions
+  - Health check: `GET /health` - System status
+  - System info: `GET /api/v1/rag/info` - RAG statistics
+- **API Documentation**: http://188.34.205.146:8000/docs - Interactive OpenAPI (Swagger UI)
 
 📊 **Resources**
 - [Jupyter Notebook](notebooks/01_baseline_rag.ipynb) - Interactive RAG exploration
