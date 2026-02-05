@@ -5,6 +5,7 @@
 **Institution**: OpenClassrooms - Data Science Path
 **Date**: February 2026
 **Version**: 1.0
+**License**: Apache License 2.0
 
 ---
 

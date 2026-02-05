@@ -3,7 +3,7 @@
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](VERSION_HISTORY.md)
 [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://www.python.org/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/)
-[![License](https://img.shields.io/badge/license-OpenClassrooms-orange.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
 > **A production-ready Retrieval-Augmented Generation (RAG) system for discovering cultural events in the French Alps region.**
 
@@ -718,12 +718,29 @@ This project was developed as part of OpenClassrooms Data Science training. Whil
 
 ## 📄 License
 
-This project is developed as part of **OpenClassrooms** Data Science training program.
+This project is licensed under the **Apache License 2.0** - see the [LICENSE](LICENSE) file for details.
+
+```
+Copyright 2026 Ghislain de Labie
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+```
 
 **Author**: Ghislain de Labie
-**Institution**: OpenClassrooms
-**Project**: OC7 - Retrieval-Augmented Generation System
+**Project**: OC7-RAG - Retrieval-Augmented Generation System
 **Date**: February 2026
+
+**Note**: This project was developed as part of OpenClassrooms Data Science training program.
 
 ---
 
