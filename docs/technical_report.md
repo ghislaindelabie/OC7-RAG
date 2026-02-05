@@ -2,7 +2,7 @@
 
 **Project**: Puls-Events RAG - Intelligent Chatbot POC
 **Author**: Ghislain de Labie
-**Institution**: OpenClassrooms - Data Science Path
+**Institution**: OpenClassrooms - AI Engineer (Master-level accredited degree)
 **Date**: February 2026
 **Version**: 1.0
 **License**: Apache License 2.0

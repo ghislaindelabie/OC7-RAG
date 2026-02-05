@@ -743,7 +743,7 @@ limitations under the License.
 **Project**: OC7-RAG - Retrieval-Augmented Generation System
 **Date**: February 2026
 
-**Note**: This project was developed as part of OpenClassrooms Data Science training program.
+**Academic Context**: This project was developed as part of the **OpenClassrooms AI Engineer** learning path, a master-level accredited degree program.
 
 ---
 
@@ -759,8 +759,8 @@ Event data provided by [OpenAgenda](https://openagenda.com/) via [OpenDataSoft](
 - **FastAPI** - Modern Python web framework
 - **Docker** - Containerization
 
-### Training
-Developed as part of the OpenClassrooms **Data Scientist** training path.
+### Academic Program
+Developed as part of the OpenClassrooms **AI Engineer** learning path (master-level accredited degree).
 
 ---
 
