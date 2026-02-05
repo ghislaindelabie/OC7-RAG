@@ -15,6 +15,7 @@ from fastapi import status
 # Test Infrastructure
 # ============================================================================
 
+
 def test_fixtures_available(client, mock_rag_service):
     """Verify that test fixtures are properly configured."""
     assert client is not None
@@ -25,6 +26,7 @@ def test_fixtures_available(client, mock_rag_service):
 # ============================================================================
 # Health Endpoint Tests (Step 2)
 # ============================================================================
+
 
 class TestHealthEndpoint:
     """Tests for GET /health endpoint."""
@@ -70,6 +72,7 @@ class TestHealthEndpoint:
 # ============================================================================
 # Ask Endpoint Tests (Step 3)
 # ============================================================================
+
 
 class TestAskEndpoint:
     """Tests for POST /api/v1/ask endpoint."""
@@ -121,16 +124,14 @@ class TestAskEndpoint:
     def test_ask_invalid_rag_method_returns_422(self, client):
         """Ask endpoint should return 422 for invalid RAG method."""
         response = client.post(
-            "/api/v1/ask",
-            json={"question": "Test question", "rag_method": "invalid_method"}
+            "/api/v1/ask", json={"question": "Test question", "rag_method": "invalid_method"}
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     def test_ask_basic_method(self, client):
         """Ask endpoint should accept basic RAG method."""
         response = client.post(
-            "/api/v1/ask",
-            json={"question": "Quels concerts à Annecy?", "rag_method": "basic"}
+            "/api/v1/ask", json={"question": "Quels concerts à Annecy?", "rag_method": "basic"}
         )
         assert response.status_code == status.HTTP_200_OK
         # Note: Mock returns static response; actual rag_method verification is in integration tests
@@ -138,40 +139,33 @@ class TestAskEndpoint:
     def test_ask_advanced_method(self, client):
         """Ask endpoint should work with advanced RAG method."""
         response = client.post(
-            "/api/v1/ask",
-            json={"question": "Quels concerts à Annecy?", "rag_method": "advanced"}
+            "/api/v1/ask", json={"question": "Quels concerts à Annecy?", "rag_method": "advanced"}
         )
         assert response.status_code == status.HTTP_200_OK
 
     def test_ask_default_method_is_hybrid(self, client):
         """Ask endpoint should use hybrid as default method."""
-        response = client.post(
-            "/api/v1/ask",
-            json={"question": "Quels concerts à Annecy?"}
-        )
+        response = client.post("/api/v1/ask", json={"question": "Quels concerts à Annecy?"})
         assert response.status_code == status.HTTP_200_OK
 
     def test_ask_top_k_parameter(self, client):
         """Ask endpoint should accept top_k parameter."""
         response = client.post(
-            "/api/v1/ask",
-            json={"question": "Quels concerts?", "rag_method": "hybrid", "top_k": 3}
+            "/api/v1/ask", json={"question": "Quels concerts?", "rag_method": "hybrid", "top_k": 3}
         )
         assert response.status_code == status.HTTP_200_OK
 
     def test_ask_top_k_out_of_range_returns_422(self, client):
         """Ask endpoint should return 422 for top_k > 20."""
         response = client.post(
-            "/api/v1/ask",
-            json={"question": "Quels concerts?", "rag_method": "hybrid", "top_k": 25}
+            "/api/v1/ask", json={"question": "Quels concerts?", "rag_method": "hybrid", "top_k": 25}
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     def test_ask_returns_503_when_service_not_ready(self, client_unhealthy):
         """Ask endpoint should return 503 when RAG service is not ready."""
         response = client_unhealthy.post(
-            "/api/v1/ask",
-            json={"question": "Quels concerts?", "rag_method": "hybrid"}
+            "/api/v1/ask", json={"question": "Quels concerts?", "rag_method": "hybrid"}
         )
         assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
@@ -179,6 +173,7 @@ class TestAskEndpoint:
 # ============================================================================
 # Rebuild Endpoint Tests (Step 4)
 # ============================================================================
+
 
 class TestRebuildEndpoint:
     """Tests for POST /api/v1/rebuild endpoint."""
@@ -205,32 +200,28 @@ class TestRebuildEndpoint:
     def test_rebuild_with_force_true(self, client):
         """Rebuild endpoint should accept force=true."""
         response = client.post(
-            "/api/v1/rebuild",
-            json={"force": True, "download_fresh_data": False}
+            "/api/v1/rebuild", json={"force": True, "download_fresh_data": False}
         )
         assert response.status_code == status.HTTP_200_OK
 
     def test_rebuild_with_force_false(self, client):
         """Rebuild endpoint should accept force=false."""
         response = client.post(
-            "/api/v1/rebuild",
-            json={"force": False, "download_fresh_data": False}
+            "/api/v1/rebuild", json={"force": False, "download_fresh_data": False}
         )
         assert response.status_code == status.HTTP_200_OK
 
     def test_rebuild_without_download(self, client):
         """Rebuild endpoint should work without downloading fresh data."""
         response = client.post(
-            "/api/v1/rebuild",
-            json={"force": False, "download_fresh_data": False}
+            "/api/v1/rebuild", json={"force": False, "download_fresh_data": False}
         )
         assert response.status_code == status.HTTP_200_OK
 
     def test_rebuild_returns_503_when_service_not_ready(self, client_unhealthy):
         """Rebuild endpoint should return 503 when service not initialized."""
         response = client_unhealthy.post(
-            "/api/v1/rebuild",
-            json={"force": False, "download_fresh_data": False}
+            "/api/v1/rebuild", json={"force": False, "download_fresh_data": False}
         )
         assert response.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
 
@@ -238,6 +229,7 @@ class TestRebuildEndpoint:
 # ============================================================================
 # RAG Info Endpoint Tests
 # ============================================================================
+
 
 class TestRAGInfoEndpoint:
     """Tests for GET /api/v1/rag/info endpoint."""
@@ -271,15 +263,13 @@ class TestRAGInfoEndpoint:
 # Error Handling Tests (Step 5)
 # ============================================================================
 
+
 class TestErrorHandling:
     """Tests for error handling and edge cases."""
 
     def test_question_with_only_whitespace_returns_422(self, client):
         """Question with only whitespace should return 422."""
-        response = client.post(
-            "/api/v1/ask",
-            json={"question": "   ", "rag_method": "hybrid"}
-        )
+        response = client.post("/api/v1/ask", json={"question": "   ", "rag_method": "hybrid"})
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         data = response.json()
         assert "error" in data
@@ -288,8 +278,7 @@ class TestErrorHandling:
     def test_question_with_repeated_characters_returns_422(self, client):
         """Question with only repeated characters should return 422."""
         response = client.post(
-            "/api/v1/ask",
-            json={"question": "aaaaaaaaa", "rag_method": "hybrid"}
+            "/api/v1/ask", json={"question": "aaaaaaaaa", "rag_method": "hybrid"}
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
@@ -297,25 +286,19 @@ class TestErrorHandling:
         """Question exceeding max length should return 422."""
         long_question = "abc" * 334  # 1002 chars, varied to avoid repeated-char rejection
         response = client.post(
-            "/api/v1/ask",
-            json={"question": long_question, "rag_method": "hybrid"}
+            "/api/v1/ask", json={"question": long_question, "rag_method": "hybrid"}
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     def test_missing_question_field_returns_422(self, client):
         """Request without question field should return 422."""
-        response = client.post(
-            "/api/v1/ask",
-            json={"rag_method": "hybrid"}
-        )
+        response = client.post("/api/v1/ask", json={"rag_method": "hybrid"})
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     def test_malformed_json_returns_422(self, client):
         """Malformed JSON should return 422."""
         response = client.post(
-            "/api/v1/ask",
-            data="not valid json",
-            headers={"Content-Type": "application/json"}
+            "/api/v1/ask", data="not valid json", headers={"Content-Type": "application/json"}
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
@@ -324,7 +307,7 @@ class TestErrorHandling:
         response = client.post(
             "/api/v1/ask",
             data="question=test",
-            headers={"Content-Type": "application/x-www-form-urlencoded"}
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
         # FastAPI returns 422 for content type mismatch (treats it as validation error)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
@@ -332,41 +315,34 @@ class TestErrorHandling:
     def test_negative_top_k_returns_422(self, client):
         """Negative top_k should return 422."""
         response = client.post(
-            "/api/v1/ask",
-            json={"question": "Test question?", "rag_method": "hybrid", "top_k": -1}
+            "/api/v1/ask", json={"question": "Test question?", "rag_method": "hybrid", "top_k": -1}
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     def test_top_k_zero_returns_422(self, client):
         """Zero top_k should return 422."""
         response = client.post(
-            "/api/v1/ask",
-            json={"question": "Test question?", "rag_method": "hybrid", "top_k": 0}
+            "/api/v1/ask", json={"question": "Test question?", "rag_method": "hybrid", "top_k": 0}
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
     def test_question_with_special_characters_accepted(self, client):
         """Question with special characters should be accepted."""
         response = client.post(
-            "/api/v1/ask",
-            json={"question": "Événement à l'été 2026?", "rag_method": "hybrid"}
+            "/api/v1/ask", json={"question": "Événement à l'été 2026?", "rag_method": "hybrid"}
         )
         assert response.status_code == status.HTTP_200_OK
 
     def test_question_with_numbers_accepted(self, client):
         """Question with numbers should be accepted."""
         response = client.post(
-            "/api/v1/ask",
-            json={"question": "Événements en janvier 2026?", "rag_method": "hybrid"}
+            "/api/v1/ask", json={"question": "Événements en janvier 2026?", "rag_method": "hybrid"}
         )
         assert response.status_code == status.HTTP_200_OK
 
     def test_error_response_has_proper_structure(self, client):
         """Error responses should have consistent structure."""
-        response = client.post(
-            "/api/v1/ask",
-            json={"question": "ab"}  # Too short
-        )
+        response = client.post("/api/v1/ask", json={"question": "ab"})  # Too short
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         data = response.json()
 

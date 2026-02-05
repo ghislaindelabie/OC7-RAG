@@ -28,8 +28,7 @@ from .schemas import (
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -76,6 +75,7 @@ app = FastAPI(
 # Health Check Endpoint
 # ============================================================================
 
+
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
 async def health_check():
     """
@@ -106,11 +106,12 @@ async def health_check():
 # RAG Query Endpoint (will be implemented in Step 3)
 # ============================================================================
 
+
 @app.post(
     "/api/v1/ask",
     response_model=AnswerResponse,
     tags=["RAG"],
-    summary="Ask a question about cultural events"
+    summary="Ask a question about cultural events",
 )
 async def ask_question(request: QuestionRequest):
     """
@@ -130,21 +131,19 @@ async def ask_question(request: QuestionRequest):
     if not rag_service.is_ready():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="RAG service not ready - index not loaded"
+            detail="RAG service not ready - index not loaded",
         )
 
     if not rag_service.is_llm_available():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="LLM not available - check API configuration"
+            detail="LLM not available - check API configuration",
         )
 
     try:
         # Query the RAG system
         result = rag_service.query(
-            question=request.question,
-            method=request.rag_method,
-            top_k=request.top_k
+            question=request.question, method=request.rag_method, top_k=request.top_k
         )
 
         # Build response with proper schema types
@@ -156,7 +155,7 @@ async def ask_question(request: QuestionRequest):
                 location=s.get("location"),
                 date_start=s.get("date_start"),
                 description_snippet=s.get("description_snippet"),
-                relevance_score=s.get("relevance_score")
+                relevance_score=s.get("relevance_score"),
             )
             for s in result["sources"]
         ]
@@ -166,25 +165,17 @@ async def ask_question(request: QuestionRequest):
             response_time_ms=result["metadata"]["response_time_ms"],
             retrieved_docs_count=result["metadata"]["retrieved_docs_count"],
             timestamp=result["metadata"]["timestamp"],
-            model_version=result["metadata"].get("model_version")
+            model_version=result["metadata"].get("model_version"),
         )
 
-        return AnswerResponse(
-            answer=result["answer"],
-            sources=sources,
-            metadata=metadata
-        )
+        return AnswerResponse(answer=result["answer"], sources=sources, metadata=metadata)
 
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Error processing question: {e}", exc_info=True)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error processing question"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error processing question"
         )
 
 
@@ -192,11 +183,12 @@ async def ask_question(request: QuestionRequest):
 # Index Rebuild Endpoint (will be implemented in Step 4)
 # ============================================================================
 
+
 @app.post(
     "/api/v1/rebuild",
     response_model=RebuildResponse,
     tags=["Admin"],
-    summary="Rebuild the FAISS index"
+    summary="Rebuild the FAISS index",
 )
 async def rebuild_index(request: RebuildRequest):
     """
@@ -233,17 +225,17 @@ async def rebuild_index(request: RebuildRequest):
     # Check if service is initialized
     if not rag_service.is_initialized():
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="RAG service not initialized"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="RAG service not initialized"
         )
 
     try:
-        logger.info(f"Rebuild request: force={request.force}, download_fresh_data={request.download_fresh_data}")
+        logger.info(
+            f"Rebuild request: force={request.force}, download_fresh_data={request.download_fresh_data}"
+        )
 
         # Run rebuild (may take a while)
         result = rag_service.rebuild_index(
-            force=request.force,
-            download_fresh_data=request.download_fresh_data
+            force=request.force, download_fresh_data=request.download_fresh_data
         )
 
         # Map status to HTTP response
@@ -253,8 +245,7 @@ async def rebuild_index(request: RebuildRequest):
             return RebuildResponse(**result)
         else:  # "failed"
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=result["message"]
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=result["message"]
             )
 
     except HTTPException:
@@ -263,7 +254,7 @@ async def rebuild_index(request: RebuildRequest):
         logger.error(f"Error processing rebuild request: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error rebuilding index: {str(e)}"
+            detail=f"Error rebuilding index: {str(e)}",
         )
 
 
@@ -271,11 +262,12 @@ async def rebuild_index(request: RebuildRequest):
 # RAG Info Endpoint
 # ============================================================================
 
+
 @app.get(
     "/api/v1/rag/info",
     response_model=RAGInfoResponse,
     tags=["Info"],
-    summary="Get RAG system information"
+    summary="Get RAG system information",
 )
 async def get_rag_info():
     """
@@ -288,8 +280,7 @@ async def get_rag_info():
 
     if not rag_service.is_ready():
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="RAG service not ready"
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="RAG service not ready"
         )
 
     info = rag_service.get_info()
@@ -300,6 +291,7 @@ async def get_rag_info():
 # Chat Interface
 # ============================================================================
 
+
 @app.get("/")
 async def serve_chat_interface():
     """
@@ -308,6 +300,7 @@ async def serve_chat_interface():
     This provides a user-friendly web interface for querying the RAG system.
     """
     from pathlib import Path
+
     static_dir = Path(__file__).parent / "static"
     index_path = static_dir / "index.html"
     return FileResponse(index_path)
@@ -316,6 +309,7 @@ async def serve_chat_interface():
 # ============================================================================
 # Error Handlers
 # ============================================================================
+
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc: RequestValidationError):
@@ -336,7 +330,7 @@ async def validation_exception_handler(request, exc: RequestValidationError):
         content=ErrorResponse(
             error="validation_error",
             message="Invalid request data",
-            detail="; ".join(error_details)
+            detail="; ".join(error_details),
         ).model_dump(),
     )
 
@@ -348,9 +342,7 @@ async def value_error_handler(request, exc: ValueError):
     return JSONResponse(
         status_code=status.HTTP_400_BAD_REQUEST,
         content=ErrorResponse(
-            error="invalid_parameter",
-            message=str(exc),
-            detail=None
+            error="invalid_parameter", message=str(exc), detail=None
         ).model_dump(),
     )
 
@@ -362,9 +354,7 @@ async def runtime_error_handler(request, exc: RuntimeError):
     return JSONResponse(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         content=ErrorResponse(
-            error="service_unavailable",
-            message="Service temporarily unavailable",
-            detail=str(exc)
+            error="service_unavailable", message="Service temporarily unavailable", detail=str(exc)
         ).model_dump(),
     )
 
@@ -377,9 +367,8 @@ async def global_exception_handler(request, exc):
     # Check if it's a Mistral API error (common third-party error)
     error_msg = str(exc)
     # Check for mistral-specific errors (module or error message contains "mistral")
-    is_mistral_error = (
-        "mistral" in error_msg.lower() or
-        (hasattr(exc, '__module__') and exc.__module__ and 'mistral' in exc.__module__.lower())
+    is_mistral_error = "mistral" in error_msg.lower() or (
+        hasattr(exc, "__module__") and exc.__module__ and "mistral" in exc.__module__.lower()
     )
     if is_mistral_error:
         return JSONResponse(
@@ -387,7 +376,7 @@ async def global_exception_handler(request, exc):
             content=ErrorResponse(
                 error="external_service_error",
                 message="External API error (LLM or embeddings)",
-                detail="The AI service is temporarily unavailable. Please try again later."
+                detail="The AI service is temporarily unavailable. Please try again later.",
             ).model_dump(),
         )
 
@@ -397,7 +386,7 @@ async def global_exception_handler(request, exc):
         content=ErrorResponse(
             error="internal_server_error",
             message="An unexpected error occurred",
-            detail=str(exc) if os.getenv("DEBUG", "false").lower() == "true" else None
+            detail=str(exc) if os.getenv("DEBUG", "false").lower() == "true" else None,
         ).model_dump(),
     )
 
@@ -408,4 +397,5 @@ async def global_exception_handler(request, exc):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")

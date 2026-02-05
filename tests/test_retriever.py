@@ -20,37 +20,38 @@ from langchain_classic.retrievers import EnsembleRetriever
 
 # ============== FIXTURES ==============
 
+
 @pytest.fixture
 def sample_documents():
     """Test documents with varied content for retrieval testing."""
     return [
         Document(
             page_content="Concert de jazz à Annecy le 15 mars",
-            metadata={"city": "Annecy", "type": "concert", "id": "1"}
+            metadata={"city": "Annecy", "type": "concert", "id": "1"},
         ),
         Document(
             page_content="Exposition art contemporain Chambéry musée",
-            metadata={"city": "Chambéry", "type": "exposition", "id": "2"}
+            metadata={"city": "Chambéry", "type": "exposition", "id": "2"},
         ),
         Document(
             page_content="Festival musique classique Grenoble été",
-            metadata={"city": "Grenoble", "type": "festival", "id": "3"}
+            metadata={"city": "Grenoble", "type": "festival", "id": "3"},
         ),
         Document(
             page_content="Atelier créatif enfants Annecy samedi",
-            metadata={"city": "Annecy", "type": "atelier", "id": "4"}
+            metadata={"city": "Annecy", "type": "atelier", "id": "4"},
         ),
         Document(
             page_content="Visite guidée patrimoine Thonon-les-Bains",
-            metadata={"city": "Thonon-les-Bains", "type": "visite", "id": "5"}
+            metadata={"city": "Thonon-les-Bains", "type": "visite", "id": "5"},
         ),
         Document(
             page_content="Job dating recrutement France Travail Grenoble",
-            metadata={"city": "Grenoble", "type": "emploi", "id": "6"}
+            metadata={"city": "Grenoble", "type": "emploi", "id": "6"},
         ),
         Document(
             page_content="Journées du patrimoine château Chambéry",
-            metadata={"city": "Chambéry", "type": "patrimoine", "id": "7"}
+            metadata={"city": "Chambéry", "type": "patrimoine", "id": "7"},
         ),
     ]
 
@@ -84,13 +85,11 @@ def bm25_retriever(sample_documents):
 @pytest.fixture
 def hybrid_retriever(faiss_retriever, bm25_retriever):
     """Hybrid (Ensemble) retriever combining FAISS and BM25."""
-    return EnsembleRetriever(
-        retrievers=[faiss_retriever, bm25_retriever],
-        weights=[0.5, 0.5]
-    )
+    return EnsembleRetriever(retrievers=[faiss_retriever, bm25_retriever], weights=[0.5, 0.5])
 
 
 # ============== FAISS RETRIEVER TESTS ==============
+
 
 class TestFAISSRetriever:
     """Test FAISS (dense/semantic) retriever."""
@@ -136,6 +135,7 @@ class TestFAISSRetriever:
 
 
 # ============== BM25 RETRIEVER TESTS ==============
+
 
 class TestBM25Retriever:
     """Test BM25 (sparse/keyword) retriever."""
@@ -190,6 +190,7 @@ class TestBM25Retriever:
 
 # ============== HYBRID RETRIEVER TESTS ==============
 
+
 class TestHybridRetriever:
     """Test Ensemble (Hybrid) retriever combining FAISS + BM25."""
 
@@ -211,10 +212,7 @@ class TestHybridRetriever:
         bm25_ret = BM25Retriever.from_documents(sample_documents)
         bm25_ret.k = 3
 
-        hybrid = EnsembleRetriever(
-            retrievers=[faiss_ret, bm25_ret],
-            weights=[0.5, 0.5]
-        )
+        hybrid = EnsembleRetriever(retrievers=[faiss_ret, bm25_ret], weights=[0.5, 0.5])
 
         # Query that benefits from both semantic and keyword matching
         results = hybrid.invoke("emploi recrutement")
@@ -227,16 +225,10 @@ class TestHybridRetriever:
         bm25_ret.k = 3
 
         # Dense-heavy
-        hybrid_dense = EnsembleRetriever(
-            retrievers=[faiss_ret, bm25_ret],
-            weights=[0.9, 0.1]
-        )
+        hybrid_dense = EnsembleRetriever(retrievers=[faiss_ret, bm25_ret], weights=[0.9, 0.1])
 
         # Sparse-heavy
-        hybrid_sparse = EnsembleRetriever(
-            retrievers=[faiss_ret, bm25_ret],
-            weights=[0.1, 0.9]
-        )
+        hybrid_sparse = EnsembleRetriever(retrievers=[faiss_ret, bm25_ret], weights=[0.1, 0.9])
 
         results_dense = hybrid_dense.invoke("concert")
         results_sparse = hybrid_sparse.invoke("concert")
@@ -254,6 +246,7 @@ class TestHybridRetriever:
 
 
 # ============== EDGE CASES TESTS ==============
+
 
 class TestRetrieverEdgeCases:
     """Test edge cases for all retrievers."""
@@ -310,23 +303,20 @@ class TestRetrieverEdgeCases:
 
 # ============== RETRIEVER CONFIGURATION TESTS ==============
 
+
 class TestRetrieverConfiguration:
     """Test retriever configuration options."""
 
     def test_faiss_search_type_similarity(self, faiss_vectorstore):
         """FAISS retriever with similarity search type."""
-        retriever = faiss_vectorstore.as_retriever(
-            search_type="similarity",
-            search_kwargs={"k": 3}
-        )
+        retriever = faiss_vectorstore.as_retriever(search_type="similarity", search_kwargs={"k": 3})
         results = retriever.invoke("concert")
         assert len(results) == 3
 
     def test_faiss_search_type_mmr(self, faiss_vectorstore):
         """FAISS retriever with MMR (maximal marginal relevance)."""
         retriever = faiss_vectorstore.as_retriever(
-            search_type="mmr",
-            search_kwargs={"k": 3, "fetch_k": 5}
+            search_type="mmr", search_kwargs={"k": 3, "fetch_k": 5}
         )
         results = retriever.invoke("concert")
         assert len(results) == 3
@@ -342,6 +332,7 @@ class TestRetrieverConfiguration:
 
 
 # ============== INTEGRATION TESTS ==============
+
 
 @pytest.mark.integration
 @pytest.mark.slow

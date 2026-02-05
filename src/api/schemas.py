@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, ConfigDict, field_validator
 # Ask Endpoint Schemas
 # ============================================================================
 
+
 class QuestionRequest(BaseModel):
     """Request schema for the /ask endpoint."""
 
@@ -21,20 +22,14 @@ class QuestionRequest(BaseModel):
         min_length=3,
         max_length=1000,
         description="User question about cultural events",
-        examples=["Quels concerts ont lieu à Annecy ce week-end?"]
+        examples=["Quels concerts ont lieu à Annecy ce week-end?"],
     )
     rag_method: Literal["basic", "hybrid", "advanced"] = Field(
-        default="hybrid",
-        description="RAG retrieval method to use"
+        default="hybrid", description="RAG retrieval method to use"
     )
-    top_k: int = Field(
-        default=5,
-        ge=1,
-        le=20,
-        description="Number of documents to retrieve"
-    )
+    top_k: int = Field(default=5, ge=1, le=20, description="Number of documents to retrieve")
 
-    @field_validator('question')
+    @field_validator("question")
     @classmethod
     def validate_question(cls, v: str) -> str:
         """Validate and clean question input."""
@@ -56,7 +51,7 @@ class QuestionRequest(BaseModel):
             "example": {
                 "question": "Quels sont les événements gratuits à Grenoble ce mois-ci?",
                 "rag_method": "hybrid",
-                "top_k": 5
+                "top_k": 5,
             }
         }
     )
@@ -68,14 +63,8 @@ class EventSource(BaseModel):
     title: str = Field(..., description="Event title")
     location: Optional[str] = Field(None, description="Event location (city)")
     date_start: Optional[str] = Field(None, description="Event start date")
-    description_snippet: Optional[str] = Field(
-        None,
-        description="Short snippet from description"
-    )
-    relevance_score: Optional[float] = Field(
-        None,
-        description="Relevance score (if available)"
-    )
+    description_snippet: Optional[str] = Field(None, description="Short snippet from description")
+    relevance_score: Optional[float] = Field(None, description="Relevance score (if available)")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -84,7 +73,7 @@ class EventSource(BaseModel):
                 "location": "Annecy",
                 "date_start": "2026-07-15",
                 "description_snippet": "Un festival de jazz exceptionnel...",
-                "relevance_score": 0.85
+                "relevance_score": 0.85,
             }
         }
     )
@@ -106,7 +95,7 @@ class QueryMetadata(BaseModel):
                 "response_time_ms": 1250,
                 "retrieved_docs_count": 5,
                 "timestamp": "2026-01-29T18:30:00.000000Z",
-                "model_version": "mistral-small-latest"
+                "model_version": "mistral-small-latest",
             }
         }
     )
@@ -117,8 +106,7 @@ class AnswerResponse(BaseModel):
 
     answer: str = Field(..., description="Generated answer to the question")
     sources: List[EventSource] = Field(
-        default_factory=list,
-        description="Retrieved event documents used to generate answer"
+        default_factory=list, description="Retrieved event documents used to generate answer"
     )
     metadata: QueryMetadata = Field(..., description="Query execution metadata")
 
@@ -131,15 +119,15 @@ class AnswerResponse(BaseModel):
                         "title": "Concert de Jazz",
                         "location": "Annecy",
                         "date_start": "2026-02-01",
-                        "description_snippet": "Un concert exceptionnel..."
+                        "description_snippet": "Un concert exceptionnel...",
                     }
                 ],
                 "metadata": {
                     "rag_method": "hybrid",
                     "response_time_ms": 1250,
                     "retrieved_docs_count": 5,
-                    "timestamp": "2026-01-29T18:30:00.000000Z"
-                }
+                    "timestamp": "2026-01-29T18:30:00.000000Z",
+                },
             }
         }
     )
@@ -149,48 +137,28 @@ class AnswerResponse(BaseModel):
 # Rebuild Endpoint Schemas
 # ============================================================================
 
+
 class RebuildRequest(BaseModel):
     """Request schema for the /rebuild endpoint."""
 
-    force: bool = Field(
-        default=False,
-        description="Force rebuild even if recent index exists"
-    )
+    force: bool = Field(default=False, description="Force rebuild even if recent index exists")
     download_fresh_data: bool = Field(
-        default=True,
-        description="Download fresh data from OpenAgenda before rebuilding"
+        default=True, description="Download fresh data from OpenAgenda before rebuilding"
     )
 
     model_config = ConfigDict(
-        json_schema_extra={
-            "example": {
-                "force": False,
-                "download_fresh_data": True
-            }
-        }
+        json_schema_extra={"example": {"force": False, "download_fresh_data": True}}
     )
 
 
 class RebuildResponse(BaseModel):
     """Response schema for the /rebuild endpoint."""
 
-    status: Literal["success", "skipped", "failed"] = Field(
-        ...,
-        description="Rebuild status"
-    )
+    status: Literal["success", "skipped", "failed"] = Field(..., description="Rebuild status")
     message: str = Field(..., description="Status message")
-    events_indexed: Optional[int] = Field(
-        None,
-        description="Number of events indexed"
-    )
-    build_time_seconds: Optional[float] = Field(
-        None,
-        description="Time taken to rebuild"
-    )
-    index_path: Optional[str] = Field(
-        None,
-        description="Path to the rebuilt index"
-    )
+    events_indexed: Optional[int] = Field(None, description="Number of events indexed")
+    build_time_seconds: Optional[float] = Field(None, description="Time taken to rebuild")
+    index_path: Optional[str] = Field(None, description="Path to the rebuilt index")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -199,7 +167,7 @@ class RebuildResponse(BaseModel):
                 "message": "Index rebuilt successfully",
                 "events_indexed": 8547,
                 "build_time_seconds": 45.2,
-                "index_path": "data/index/faiss_baseline"
+                "index_path": "data/index/faiss_baseline",
             }
         }
     )
@@ -209,18 +177,15 @@ class RebuildResponse(BaseModel):
 # Health Endpoint Schemas
 # ============================================================================
 
+
 class HealthResponse(BaseModel):
     """Response schema for the /health endpoint."""
 
     status: Literal["healthy", "unhealthy", "degraded"] = Field(
-        ...,
-        description="Overall health status"
+        ..., description="Overall health status"
     )
     index_loaded: bool = Field(..., description="Is FAISS index loaded?")
-    index_size: Optional[int] = Field(
-        None,
-        description="Number of documents in index"
-    )
+    index_size: Optional[int] = Field(None, description="Number of documents in index")
     llm_available: bool = Field(..., description="Is LLM API accessible?")
     timestamp: str = Field(..., description="ISO 8601 timestamp")
 
@@ -231,7 +196,7 @@ class HealthResponse(BaseModel):
                 "index_loaded": True,
                 "index_size": 8547,
                 "llm_available": True,
-                "timestamp": "2026-01-29T18:30:00.000000Z"
+                "timestamp": "2026-01-29T18:30:00.000000Z",
             }
         }
     )
@@ -241,22 +206,14 @@ class HealthResponse(BaseModel):
 # RAG Info Endpoint Schemas
 # ============================================================================
 
+
 class RAGInfoResponse(BaseModel):
     """Response schema for the /api/v1/rag/info endpoint."""
 
     version: str = Field(..., description="RAG system version")
-    available_methods: List[str] = Field(
-        ...,
-        description="Available RAG methods"
-    )
-    index_info: Dict[str, Any] = Field(
-        ...,
-        description="Information about loaded index"
-    )
-    model_info: Dict[str, Any] = Field(
-        ...,
-        description="Information about LLM model"
-    )
+    available_methods: List[str] = Field(..., description="Available RAG methods")
+    index_info: Dict[str, Any] = Field(..., description="Information about loaded index")
+    model_info: Dict[str, Any] = Field(..., description="Information about LLM model")
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -267,12 +224,9 @@ class RAGInfoResponse(BaseModel):
                     "documents_count": 8547,
                     "embedding_model": "mistral-embed",
                     "embedding_dimension": 1024,
-                    "last_updated": "2026-01-29T10:00:00Z"
+                    "last_updated": "2026-01-29T10:00:00Z",
                 },
-                "model_info": {
-                    "llm_model": "mistral-small-latest",
-                    "provider": "Mistral AI"
-                }
+                "model_info": {"llm_model": "mistral-small-latest", "provider": "Mistral AI"},
             }
         }
     )
@@ -281,6 +235,7 @@ class RAGInfoResponse(BaseModel):
 # ============================================================================
 # Error Schemas
 # ============================================================================
+
 
 class ErrorResponse(BaseModel):
     """Standard error response schema."""
@@ -294,7 +249,7 @@ class ErrorResponse(BaseModel):
             "example": {
                 "error": "validation_error",
                 "message": "Invalid question format",
-                "detail": "Question must be between 3 and 1000 characters"
+                "detail": "Question must be between 3 and 1000 characters",
             }
         }
     )
