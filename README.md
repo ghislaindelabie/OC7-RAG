@@ -21,7 +21,7 @@ Welcome! This project showcases a complete, production-ready RAG system that hel
 - 🎯 Three RAG implementations (Basic, Hybrid, Advanced)
 - 🚀 Production REST API with FastAPI
 - 🐳 Full Docker containerization + CI/CD pipeline
-- 🧪 77 comprehensive unit tests (100% passing)
+- 🧪 87 comprehensive unit tests (100% passing)
 - 📊 Automated LLM-as-Judge evaluation framework
 - 💬 Interactive web chat interface
 - 📚 Complete technical documentation
@@ -136,7 +136,7 @@ Welcome! This project showcases a complete, production-ready RAG system that hel
 - ✅ **Auto-Rebuild**: FAISS index automatically built on first container startup
 - ✅ **Web Interface**: Interactive chat UI for testing
 - ✅ **Health Monitoring**: Container health checks and status endpoints
-- ✅ **Comprehensive Testing**: 77 unit tests (100% passing)
+- ✅ **Comprehensive Testing**: 87 unit tests (100% passing)
 - ✅ **LLM-as-Judge**: Automated evaluation with 56 test questions
 - ✅ **Smart Query Handling**: Off-topic detection and query reformulation
 
@@ -442,7 +442,7 @@ All development phases completed and production-ready:
 - Comprehensive error handling and logging
 
 **Phase 5: Testing & Evaluation** ✅
-- 77 unit tests (100% passing)
+- 87 unit tests (100% passing)
 - 56 annotated evaluation questions
 - LLM-as-Judge framework with Chain-of-Thought
 - Automated evaluation pipeline
@@ -614,7 +614,7 @@ Run `notebooks/01_baseline_rag.ipynb` cells 24-31 to:
 | Resource | Description |
 |----------|-------------|
 | [Test Dataset](tests/test_data/test_questions.csv) | 56 annotated questions across 4 categories |
-| [Unit Tests](tests/) | 77 comprehensive tests (indexation, retrieval, API) |
+| [Unit Tests](tests/) | 87 comprehensive tests (indexation, retrieval, API) |
 | [Evaluation Notebook](notebooks/01_baseline_rag.ipynb) | Cells 24-31: LLM-as-Judge framework |
 
 ### Future Enhancements
