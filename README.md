@@ -4,6 +4,8 @@
 [![Python](https://img.shields.io/badge/python-3.11+-green.svg)](https://www.python.org/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://hub.docker.com/)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![CI/CD](https://github.com/ghislaindelabie/OC7-RAG/actions/workflows/deploy.yml/badge.svg)](https://github.com/ghislaindelabie/OC7-RAG/actions)
+[![Tests](https://img.shields.io/badge/tests-87%20passing-brightgreen.svg)](tests/)
 
 > **A production-ready Retrieval-Augmented Generation (RAG) system for discovering cultural events in the French Alps region.**
 
