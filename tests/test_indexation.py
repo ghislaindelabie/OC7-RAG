@@ -19,29 +19,30 @@ from langchain_community.embeddings import FakeEmbeddings
 
 # ============== FIXTURES ==============
 
+
 @pytest.fixture
 def sample_documents():
     """Small set of test documents for unit tests."""
     return [
         Document(
             page_content="Concert de jazz à Annecy le 15 mars 2026",
-            metadata={"city": "Annecy", "type": "concert", "id": "1"}
+            metadata={"city": "Annecy", "type": "concert", "id": "1"},
         ),
         Document(
             page_content="Exposition d'art contemporain à Chambéry",
-            metadata={"city": "Chambéry", "type": "exposition", "id": "2"}
+            metadata={"city": "Chambéry", "type": "exposition", "id": "2"},
         ),
         Document(
             page_content="Festival de musique classique à Grenoble",
-            metadata={"city": "Grenoble", "type": "festival", "id": "3"}
+            metadata={"city": "Grenoble", "type": "festival", "id": "3"},
         ),
         Document(
             page_content="Atelier créatif pour enfants à Annecy",
-            metadata={"city": "Annecy", "type": "atelier", "id": "4"}
+            metadata={"city": "Annecy", "type": "atelier", "id": "4"},
         ),
         Document(
             page_content="Visite guidée du patrimoine à Thonon-les-Bains",
-            metadata={"city": "Thonon-les-Bains", "type": "visite", "id": "5"}
+            metadata={"city": "Thonon-les-Bains", "type": "visite", "id": "5"},
         ),
     ]
 
@@ -59,6 +60,7 @@ def sample_vectorstore(sample_documents, fake_embeddings):
 
 
 # ============== INDEX CREATION TESTS ==============
+
 
 class TestIndexCreation:
     """Test FAISS index creation from documents."""
@@ -93,6 +95,7 @@ class TestIndexCreation:
 
 # ============== INDEX PERSISTENCE TESTS ==============
 
+
 class TestIndexPersistence:
     """Test index save/load functionality."""
 
@@ -114,9 +117,7 @@ class TestIndexPersistence:
 
         # Reload
         loaded = FAISS.load_local(
-            str(save_path),
-            fake_embeddings,
-            allow_dangerous_deserialization=True
+            str(save_path), fake_embeddings, allow_dangerous_deserialization=True
         )
 
         # Verify same size
@@ -130,9 +131,7 @@ class TestIndexPersistence:
         vectorstore.save_local(str(save_path))
 
         loaded = FAISS.load_local(
-            str(save_path),
-            fake_embeddings,
-            allow_dangerous_deserialization=True
+            str(save_path), fake_embeddings, allow_dangerous_deserialization=True
         )
 
         # Search should work
@@ -143,13 +142,12 @@ class TestIndexPersistence:
         """Loading from nonexistent path raises appropriate error."""
         with pytest.raises(Exception):
             FAISS.load_local(
-                str(tmp_path / "nonexistent"),
-                fake_embeddings,
-                allow_dangerous_deserialization=True
+                str(tmp_path / "nonexistent"), fake_embeddings, allow_dangerous_deserialization=True
             )
 
 
 # ============== INDEX SEARCH TESTS ==============
+
 
 class TestIndexSearch:
     """Test index search functionality."""
@@ -186,7 +184,7 @@ class TestIndexSearch:
         for doc, score in results:
             assert isinstance(doc, Document)
             # Score can be float or numpy float type
-            assert isinstance(score, (float, int)) or hasattr(score, '__float__')
+            assert isinstance(score, (float, int)) or hasattr(score, "__float__")
 
     def test_search_scores_are_non_negative(self, sample_vectorstore):
         """Search scores are non-negative (distance-based)."""
@@ -198,6 +196,7 @@ class TestIndexSearch:
 
 # ============== EDGE CASES TESTS ==============
 
+
 class TestEdgeCases:
     """Test edge cases and special inputs."""
 
@@ -206,7 +205,9 @@ class TestEdgeCases:
         docs = [
             Document(page_content="🎵 Concert à Grenoble 🎶", metadata={"id": "1"}),
             Document(page_content="Événement spécial été 2026!", metadata={"id": "2"}),
-            Document(page_content="Prix: 15€ - Réservation: contact@event.fr", metadata={"id": "3"}),
+            Document(
+                page_content="Prix: 15€ - Réservation: contact@event.fr", metadata={"id": "3"}
+            ),
         ]
         vectorstore = FAISS.from_documents(docs, fake_embeddings)
         assert vectorstore.index.ntotal == 3
@@ -254,6 +255,7 @@ class TestEdgeCases:
 
 
 # ============== INTEGRATION TESTS ==============
+
 
 @pytest.mark.integration
 @pytest.mark.slow

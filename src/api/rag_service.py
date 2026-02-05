@@ -51,28 +51,28 @@ def _clean_html(html_text: str) -> str:
     """Remove HTML tags from text."""
     if not html_text:
         return ""
-    soup = BeautifulSoup(html_text, 'lxml')
-    return soup.get_text(separator=' ', strip=True)
+    soup = BeautifulSoup(html_text, "lxml")
+    return soup.get_text(separator=" ", strip=True)
 
 
 def _build_document_text(event: dict) -> str:
     """Build comprehensive document text from event data."""
     parts = []
 
-    title = event.get('title_fr', '')
+    title = event.get("title_fr", "")
     if title:
         parts.append(f"Événement: {title}")
 
-    long_desc = _clean_html(event.get('longdescription_fr', ''))
-    short_desc = event.get('description_fr', '')
+    long_desc = _clean_html(event.get("longdescription_fr", ""))
+    short_desc = event.get("description_fr", "")
     description = long_desc if long_desc else short_desc
     if description:
         parts.append(f"Description: {description}")
 
-    city = event.get('location_city', '')
-    location_name = event.get('location_name', '')
-    address = event.get('location_address', '')
-    department = event.get('location_department', '')
+    city = event.get("location_city", "")
+    location_name = event.get("location_name", "")
+    address = event.get("location_address", "")
+    department = event.get("location_department", "")
 
     location_parts = []
     if location_name:
@@ -87,31 +87,31 @@ def _build_document_text(event: dict) -> str:
     if location_parts:
         parts.append(f"Lieu: {', '.join(location_parts)}")
 
-    daterange = event.get('daterange_fr', '')
+    daterange = event.get("daterange_fr", "")
     if daterange:
         parts.append(f"Date: {daterange}")
 
-    category = event.get('category', '')
+    category = event.get("category", "")
     if category:
         parts.append(f"Catégorie: {category}")
 
-    keywords = event.get('keywords_fr', [])
+    keywords = event.get("keywords_fr", [])
     if keywords:
         parts.append(f"Mots-clés: {', '.join(keywords[:10])}")
 
-    return '\n'.join(parts)
+    return "\n".join(parts)
 
 
 def _build_metadata(event: dict) -> dict:
     """Extract metadata from event."""
     return {
-        'uid': event.get('uid', ''),
-        'title': event.get('title_fr', ''),
-        'city': event.get('location_city', ''),
-        'department': event.get('location_department', ''),
-        'daterange': event.get('daterange_fr', ''),
-        'category': event.get('category', ''),
-        'url': event.get('canonicalurl', '')
+        "uid": event.get("uid", ""),
+        "title": event.get("title_fr", ""),
+        "city": event.get("location_city", ""),
+        "department": event.get("location_department", ""),
+        "daterange": event.get("daterange_fr", ""),
+        "category": event.get("category", ""),
+        "url": event.get("canonicalurl", ""),
     }
 
 
@@ -127,7 +127,7 @@ class RAGService:
 
     # Download timeout configuration (seconds)
     CONNECT_TIMEOUT = 10  # Max time to establish connection
-    READ_TIMEOUT = 60     # Max silence between chunks
+    READ_TIMEOUT = 60  # Max silence between chunks
 
     _instance = None
 
@@ -181,12 +181,16 @@ class RAGService:
                     try:
                         result = self.rebuild_index(force=True, download_fresh_data=True)
                         if result.get("status") == "success":
-                            logger.info(f"Auto-rebuild complete: {result.get('events_indexed')} events indexed")
+                            logger.info(
+                                f"Auto-rebuild complete: {result.get('events_indexed')} events indexed"
+                            )
                         else:
                             logger.warning(f"Auto-rebuild returned: {result.get('status')}")
                     except Exception as rebuild_error:
                         logger.error(f"Auto-rebuild failed: {rebuild_error}")
-                        logger.warning("Service will start in degraded mode - call POST /rebuild manually")
+                        logger.warning(
+                            "Service will start in degraded mode - call POST /rebuild manually"
+                        )
                 else:
                     logger.info("Auto-rebuild disabled (AUTO_REBUILD_INDEX=false)")
 
@@ -201,7 +205,7 @@ class RAGService:
             return []
 
         logger.info(f"Loading events from {self.data_path}...")
-        with open(self.data_path, 'r', encoding='utf-8') as f:
+        with open(self.data_path, "r", encoding="utf-8") as f:
             events = json.load(f)
 
         documents = []
@@ -225,17 +229,10 @@ class RAGService:
 
         try:
             # Initialize embeddings
-            self.embeddings = MistralAIEmbeddings(
-                model=self.embedding_model,
-                api_key=api_key
-            )
+            self.embeddings = MistralAIEmbeddings(model=self.embedding_model, api_key=api_key)
 
             # Initialize LLM
-            self.llm = ChatMistralAI(
-                model=self.llm_model,
-                api_key=api_key,
-                temperature=0.1
-            )
+            self.llm = ChatMistralAI(model=self.llm_model, api_key=api_key, temperature=0.1)
             self._llm_available = True
 
             # Load documents (needed for BM25)
@@ -251,14 +248,12 @@ class RAGService:
                 # - The index path is hardcoded, not user-controllable
                 # For production with untrusted indices, consider index signature verification.
                 self.vectorstore = FAISS.load_local(
-                    str(self.index_path),
-                    self.embeddings,
-                    allow_dangerous_deserialization=True
+                    str(self.index_path), self.embeddings, allow_dangerous_deserialization=True
                 )
                 self._index_loaded = True
-                self.index_metadata["last_updated"] = datetime.fromtimestamp(
-                    self.index_path.stat().st_mtime
-                ).isoformat() + "Z"
+                self.index_metadata["last_updated"] = (
+                    datetime.fromtimestamp(self.index_path.stat().st_mtime).isoformat() + "Z"
+                )
                 logger.info(f"  Index loaded with {self.vectorstore.index.ntotal} vectors")
             else:
                 logger.warning(f"FAISS index not found at {self.index_path}")
@@ -280,8 +275,7 @@ class RAGService:
             return
 
         prompt = PromptTemplate(
-            template=RAG_PROMPT_TEMPLATE,
-            input_variables=["context", "question"]
+            template=RAG_PROMPT_TEMPLATE, input_variables=["context", "question"]
         )
 
         # Basic RAG (FAISS only)
@@ -292,7 +286,7 @@ class RAGService:
             chain_type="stuff",
             retriever=basic_retriever,
             return_source_documents=True,
-            chain_type_kwargs={"prompt": prompt}
+            chain_type_kwargs={"prompt": prompt},
         )
 
         # Hybrid RAG (FAISS + BM25)
@@ -301,15 +295,14 @@ class RAGService:
         bm25_retriever.k = 5
         faiss_retriever = self.vectorstore.as_retriever(search_kwargs={"k": 5})
         ensemble_retriever = EnsembleRetriever(
-            retrievers=[faiss_retriever, bm25_retriever],
-            weights=[0.5, 0.5]
+            retrievers=[faiss_retriever, bm25_retriever], weights=[0.5, 0.5]
         )
         self.chains["hybrid"] = RetrievalQA.from_chain_type(
             llm=self.llm,
             chain_type="stuff",
             retriever=ensemble_retriever,
             return_source_documents=True,
-            chain_type_kwargs={"prompt": prompt}
+            chain_type_kwargs={"prompt": prompt},
         )
 
         # Advanced RAG (with reranking)
@@ -320,15 +313,14 @@ class RAGService:
         try:
             compressor = FlashrankRerank(top_n=5)
             compression_retriever = ContextualCompressionRetriever(
-                base_compressor=compressor,
-                base_retriever=ensemble_retriever
+                base_compressor=compressor, base_retriever=ensemble_retriever
             )
             self.chains["advanced"] = RetrievalQA.from_chain_type(
                 llm=self.llm,
                 chain_type="stuff",
                 retriever=compression_retriever,
                 return_source_documents=True,
-                chain_type_kwargs={"prompt": prompt}
+                chain_type_kwargs={"prompt": prompt},
             )
         except Exception as e:
             # Fallback to hybrid for advanced - API remains functional but without reranking
@@ -406,12 +398,12 @@ class RAGService:
                 base_url,
                 params=params,
                 stream=True,
-                timeout=(self.CONNECT_TIMEOUT, self.READ_TIMEOUT)
+                timeout=(self.CONNECT_TIMEOUT, self.READ_TIMEOUT),
             )
             response.raise_for_status()
 
             # Save to temporary file first (atomic write)
-            with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.json') as tmp_file:
+            with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".json") as tmp_file:
                 tmp_path = Path(tmp_file.name)
                 total_size = 0
                 for chunk in response.iter_content(chunk_size=8192):
@@ -426,16 +418,22 @@ class RAGService:
             shutil.move(str(tmp_path), str(output_path))
 
             # Count events
-            with open(output_path, 'r', encoding='utf-8') as f:
+            with open(output_path, "r", encoding="utf-8") as f:
                 events = json.load(f)
                 event_count = len(events) if isinstance(events, list) else 0
 
-            logger.info(f"  Downloaded {event_count:,} events (filtered by department at API level)")
+            logger.info(
+                f"  Downloaded {event_count:,} events (filtered by department at API level)"
+            )
             return event_count
 
         except requests.exceptions.Timeout as e:
-            logger.error(f"Download timeout after {self.CONNECT_TIMEOUT}s connect / {self.READ_TIMEOUT}s read: {e}")
-            raise RuntimeError(f"Download timed out. The API may be slow or unavailable. Try again later.")
+            logger.error(
+                f"Download timeout after {self.CONNECT_TIMEOUT}s connect / {self.READ_TIMEOUT}s read: {e}"
+            )
+            raise RuntimeError(
+                f"Download timed out. The API may be slow or unavailable. Try again later."
+            )
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to download data: {e}")
             raise RuntimeError(f"Failed to download data from OpenDataSoft: {e}")
@@ -462,7 +460,7 @@ class RAGService:
         logger.info("Filtering events by date...")
         logger.info(f"  Minimum date: {min_date.strftime('%Y-%m-%d')}")
 
-        with open(raw_data_path, 'r', encoding='utf-8') as f:
+        with open(raw_data_path, "r", encoding="utf-8") as f:
             events = json.load(f)
 
         filtered_events = []
@@ -473,9 +471,9 @@ class RAGService:
                 continue
 
             try:
-                event_date = datetime.fromisoformat(
-                    firstdate.replace('Z', '+00:00')
-                ).replace(tzinfo=None)
+                event_date = datetime.fromisoformat(firstdate.replace("Z", "+00:00")).replace(
+                    tzinfo=None
+                )
                 if event_date < min_date:
                     continue
             except (ValueError, AttributeError):
@@ -484,15 +482,12 @@ class RAGService:
             filtered_events.append(event)
 
         logger.info(f"  Kept {len(filtered_events):,} events out of {len(events):,}")
-        logger.info(f"  Filtered out {len(events) - len(filtered_events):,} events before {min_date.strftime('%Y-%m-%d')}")
+        logger.info(
+            f"  Filtered out {len(events) - len(filtered_events):,} events before {min_date.strftime('%Y-%m-%d')}"
+        )
         return filtered_events
 
-    def query(
-        self,
-        question: str,
-        method: str = "hybrid",
-        top_k: int = 5
-    ) -> Dict[str, Any]:
+    def query(self, question: str, method: str = "hybrid", top_k: int = 5) -> Dict[str, Any]:
         """
         Query the RAG system.
 
@@ -530,8 +525,12 @@ class RAGService:
                     "title": doc.metadata.get("title", "Unknown"),
                     "location": doc.metadata.get("city", None),
                     "date_start": doc.metadata.get("daterange", None),
-                    "description_snippet": doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content,
-                    "relevance_score": None  # FAISS doesn't provide score in chain
+                    "description_snippet": (
+                        doc.page_content[:200] + "..."
+                        if len(doc.page_content) > 200
+                        else doc.page_content
+                    ),
+                    "relevance_score": None,  # FAISS doesn't provide score in chain
                 }
                 sources.append(source)
 
@@ -545,8 +544,8 @@ class RAGService:
                     "response_time_ms": response_time_ms,
                     "retrieved_docs_count": len(sources),
                     "timestamp": datetime.utcnow().isoformat() + "Z",
-                    "model_version": self.llm_model
-                }
+                    "model_version": self.llm_model,
+                },
             }
 
         except Exception as e:
@@ -554,9 +553,7 @@ class RAGService:
             raise
 
     def rebuild_index(
-        self,
-        force: bool = False,
-        download_fresh_data: bool = True
+        self, force: bool = False, download_fresh_data: bool = True
     ) -> Dict[str, Any]:
         """
         Rebuild the FAISS index.
@@ -581,20 +578,24 @@ class RAGService:
                         "message": f"Index is recent ({index_age_hours:.1f}h old). Use force=true to rebuild anyway.",
                         "events_indexed": None,
                         "build_time_seconds": time.time() - start_time,
-                        "index_path": str(self.index_path)
+                        "index_path": str(self.index_path),
                     }
 
             logger.info("Starting index rebuild...")
 
             # Step 1: Get data
-            raw_data_path = self.project_root / "data" / "raw" / "evenements-publics-openagenda.json"
+            raw_data_path = (
+                self.project_root / "data" / "raw" / "evenements-publics-openagenda.json"
+            )
 
             if download_fresh_data:
                 logger.info("Step 1/4: Downloading fresh data...")
                 total_events = self._download_openagenda_data(raw_data_path)
             else:
                 if not raw_data_path.exists():
-                    raise FileNotFoundError(f"Raw data not found at {raw_data_path}. Set download_fresh_data=true.")
+                    raise FileNotFoundError(
+                        f"Raw data not found at {raw_data_path}. Set download_fresh_data=true."
+                    )
                 logger.info(f"Step 1/4: Using existing data at {raw_data_path}")
 
             # Step 2: Filter events
@@ -604,7 +605,7 @@ class RAGService:
             # Save filtered data
             filtered_data_path = self.data_path
             filtered_data_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(filtered_data_path, 'w', encoding='utf-8') as f:
+            with open(filtered_data_path, "w", encoding="utf-8") as f:
                 json.dump(filtered_events, f, ensure_ascii=False, indent=2)
             logger.info(f"  Saved to {filtered_data_path}")
 
@@ -663,7 +664,7 @@ class RAGService:
                 "message": "Index rebuilt successfully",
                 "events_indexed": len(documents),
                 "build_time_seconds": round(build_time, 2),
-                "index_path": str(self.index_path)
+                "index_path": str(self.index_path),
             }
 
         except Exception as e:
@@ -673,7 +674,7 @@ class RAGService:
                 "message": f"Failed to rebuild index: {str(e)}",
                 "events_indexed": None,
                 "build_time_seconds": round(time.time() - start_time, 2),
-                "index_path": None
+                "index_path": None,
             }
 
     def get_info(self) -> Dict[str, Any]:
@@ -684,18 +685,15 @@ class RAGService:
             Dictionary with system information
         """
         return {
-            "version": "0.4.1",
+            "version": "1.1.0",
             "available_methods": ["basic", "hybrid", "advanced"],
             "index_info": {
                 "documents_count": self.get_index_size() or 0,
                 "embedding_model": self.embedding_model,
                 "embedding_dimension": 1024,
-                "last_updated": self.index_metadata.get("last_updated", "unknown")
+                "last_updated": self.index_metadata.get("last_updated", "unknown"),
             },
-            "model_info": {
-                "llm_model": self.llm_model,
-                "provider": "Mistral AI"
-            }
+            "model_info": {"llm_model": self.llm_model, "provider": "Mistral AI"},
         }
 
 

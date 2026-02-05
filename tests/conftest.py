@@ -30,23 +30,23 @@ def mock_rag_service():
                 "location": "Annecy",
                 "date_start": "2026-07-15",
                 "description_snippet": "Un festival de jazz exceptionnel...",
-                "relevance_score": 0.85
+                "relevance_score": 0.85,
             },
             {
                 "title": "Concert Rock",
                 "location": "Grenoble",
                 "date_start": "2026-07-20",
                 "description_snippet": "Concert de rock avec groupes locaux...",
-                "relevance_score": 0.78
-            }
+                "relevance_score": 0.78,
+            },
         ],
         "metadata": {
             "rag_method": "hybrid",
             "response_time_ms": 1250,
             "retrieved_docs_count": 2,
             "timestamp": "2026-01-29T18:30:00.000000Z",
-            "model_version": "mistral-small-latest"
-        }
+            "model_version": "mistral-small-latest",
+        },
     }
 
     # Mock get_info response
@@ -57,12 +57,9 @@ def mock_rag_service():
             "documents_count": 8547,
             "embedding_model": "mistral-embed",
             "embedding_dimension": 1024,
-            "last_updated": "2026-01-29T10:00:00Z"
+            "last_updated": "2026-01-29T10:00:00Z",
         },
-        "model_info": {
-            "llm_model": "mistral-small-latest",
-            "provider": "Mistral AI"
-        }
+        "model_info": {"llm_model": "mistral-small-latest", "provider": "Mistral AI"},
     }
 
     # Mock rebuild_index response
@@ -71,7 +68,7 @@ def mock_rag_service():
         "message": "Index rebuilt successfully",
         "events_indexed": 8547,
         "build_time_seconds": 45.2,
-        "index_path": "data/index/faiss_baseline"
+        "index_path": "data/index/faiss_baseline",
     }
 
     return mock
@@ -88,6 +85,7 @@ def client(mock_rag_service):
     # Patch the get_rag_service function to return our mock
     with patch("src.api.main.get_rag_service", return_value=mock_rag_service):
         from src.api.main import app
+
         with TestClient(app) as test_client:
             yield test_client
 
@@ -107,6 +105,7 @@ def client_unhealthy():
 
     with patch("src.api.main.get_rag_service", return_value=mock):
         from src.api.main import app
+
         with TestClient(app) as test_client:
             yield test_client
 
@@ -117,14 +116,11 @@ def sample_question_request():
     return {
         "question": "Quels sont les événements gratuits à Grenoble ce mois-ci?",
         "rag_method": "hybrid",
-        "top_k": 5
+        "top_k": 5,
     }
 
 
 @pytest.fixture
 def sample_rebuild_request():
     """Sample valid rebuild request payload."""
-    return {
-        "force": False,
-        "download_fresh_data": True
-    }
+    return {"force": False, "download_fresh_data": True}
