@@ -21,8 +21,11 @@ from langchain_community.embeddings import FakeEmbeddings
 from src.api.rag_service import (
     _build_metadata,
     _filter_past_events,
+    _filter_temporal_window,
     _format_date_french,
+    _parse_query_analysis_response,
     DEFAULT_REFERENCE_DATE,
+    QUERY_ANALYSIS_PROMPT,
     RAG_PROMPT_TEMPLATE,
 )
 
@@ -565,6 +568,178 @@ class TestFilterPastEvents:
         ]
         result = _filter_past_events(docs, "2024-02-06")
         assert len(result) == 0
+
+
+# ============== QUERY ANALYSIS TESTS (Feature 4) ==============
+
+
+class TestQueryAnalysisPrompt:
+    """Test QUERY_ANALYSIS_PROMPT constant (Feature 4)."""
+
+    def test_prompt_has_reference_date_placeholder(self):
+        """Prompt contains {reference_date} for injection."""
+        assert "{reference_date}" in QUERY_ANALYSIS_PROMPT
+
+    def test_prompt_has_question_placeholder(self):
+        """Prompt contains {question} for injection."""
+        assert "{question}" in QUERY_ANALYSIS_PROMPT
+
+    def test_prompt_requests_json_with_required_fields(self):
+        """Prompt instructs LLM to return JSON with is_relevant and temporal_window."""
+        assert "is_relevant" in QUERY_ANALYSIS_PROMPT
+        assert "temporal_window" in QUERY_ANALYSIS_PROMPT
+        assert "start_date" in QUERY_ANALYSIS_PROMPT
+        assert "end_date" in QUERY_ANALYSIS_PROMPT
+
+    def test_prompt_has_examples(self):
+        """Prompt contains at least one example to guide the LLM."""
+        assert "ce weekend" in QUERY_ANALYSIS_PROMPT.lower()
+
+
+class TestParseQueryAnalysis:
+    """Test _parse_query_analysis_response() helper (Feature 4)."""
+
+    def test_valid_json_parsed(self):
+        """Valid JSON with all fields is parsed correctly."""
+        text = '{"is_relevant": true, "temporal_window": {"start_date": "2024-02-10", "end_date": "2024-02-11"}, "reasoning": "ce weekend"}'
+        result = _parse_query_analysis_response(text)
+        assert result["is_relevant"] is True
+        assert result["temporal_window"]["start_date"] == "2024-02-10"
+        assert result["temporal_window"]["end_date"] == "2024-02-11"
+        assert result["reasoning"] == "ce weekend"
+
+    def test_json_in_markdown_code_block(self):
+        """JSON wrapped in markdown code block is extracted."""
+        text = '```json\n{"is_relevant": true, "temporal_window": null, "reasoning": "no temporal"}\n```'
+        result = _parse_query_analysis_response(text)
+        assert result["is_relevant"] is True
+        assert result["temporal_window"] is None
+
+    def test_off_topic_parsed(self):
+        """Off-topic response (is_relevant=false) is parsed correctly."""
+        text = '{"is_relevant": false, "temporal_window": null, "reasoning": "restaurants"}'
+        result = _parse_query_analysis_response(text)
+        assert result["is_relevant"] is False
+        assert result["temporal_window"] is None
+
+    def test_invalid_json_returns_default(self):
+        """Invalid JSON returns safe default (is_relevant=True)."""
+        result = _parse_query_analysis_response("This is not JSON at all")
+        assert result["is_relevant"] is True
+        assert result["temporal_window"] is None
+
+    def test_empty_string_returns_default(self):
+        """Empty string returns safe default."""
+        result = _parse_query_analysis_response("")
+        assert result["is_relevant"] is True
+        assert result["temporal_window"] is None
+
+
+# ============== TEMPORAL WINDOW FILTER TESTS (Feature 4) ==============
+
+
+class TestFilterTemporalWindow:
+    """Test _filter_temporal_window() function (Feature 4)."""
+
+    def _make_doc(self, content, start_date=None, end_date=None):
+        """Helper to create a Document with date metadata."""
+        metadata = {}
+        if start_date is not None:
+            metadata["event_start_date"] = start_date
+        if end_date is not None:
+            metadata["event_end_date"] = end_date
+        return Document(page_content=content, metadata=metadata)
+
+    def test_events_inside_window_kept(self):
+        """Events fully inside the temporal window are kept."""
+        docs = [
+            self._make_doc("Concert", start_date="2024-02-10", end_date="2024-02-10"),
+            self._make_doc("Expo", start_date="2024-02-11", end_date="2024-02-11"),
+        ]
+        window = {"start_date": "2024-02-10", "end_date": "2024-02-11"}
+        result = _filter_temporal_window(docs, window)
+        assert len(result) == 2
+
+    def test_events_before_window_removed(self):
+        """Events ending before the window start are removed (when other matches exist)."""
+        docs = [
+            self._make_doc("Old event", start_date="2024-02-01", end_date="2024-02-05"),
+            self._make_doc("Current event", start_date="2024-02-10", end_date="2024-02-10"),
+        ]
+        window = {"start_date": "2024-02-10", "end_date": "2024-02-11"}
+        result = _filter_temporal_window(docs, window)
+        assert len(result) == 1
+        assert result[0].page_content == "Current event"
+
+    def test_events_after_window_removed(self):
+        """Events starting after the window end are removed (when other matches exist)."""
+        docs = [
+            self._make_doc("Future event", start_date="2024-03-01", end_date="2024-03-05"),
+            self._make_doc("Current event", start_date="2024-02-11", end_date="2024-02-11"),
+        ]
+        window = {"start_date": "2024-02-10", "end_date": "2024-02-11"}
+        result = _filter_temporal_window(docs, window)
+        assert len(result) == 1
+        assert result[0].page_content == "Current event"
+
+    def test_multiday_event_overlapping_window_kept(self):
+        """Multi-day event overlapping the window is kept."""
+        docs = [
+            self._make_doc("Festival", start_date="2024-02-08", end_date="2024-02-12"),
+        ]
+        window = {"start_date": "2024-02-10", "end_date": "2024-02-11"}
+        result = _filter_temporal_window(docs, window)
+        assert len(result) == 1
+
+    def test_events_with_no_dates_kept(self):
+        """Events with missing dates are kept (benefit of the doubt)."""
+        docs = [self._make_doc("Unknown date event")]
+        window = {"start_date": "2024-02-10", "end_date": "2024-02-11"}
+        result = _filter_temporal_window(docs, window)
+        assert len(result) == 1
+
+    def test_events_with_malformed_dates_kept(self):
+        """Events with malformed dates are kept."""
+        docs = [self._make_doc("Bad date", start_date="not-a-date", end_date="bad")]
+        window = {"start_date": "2024-02-10", "end_date": "2024-02-11"}
+        result = _filter_temporal_window(docs, window)
+        assert len(result) == 1
+
+    def test_empty_result_safeguard(self):
+        """If all events would be filtered, return original list (safeguard)."""
+        docs = [
+            self._make_doc("Before", start_date="2024-01-01", end_date="2024-01-05"),
+            self._make_doc("After", start_date="2024-06-01", end_date="2024-06-05"),
+        ]
+        window = {"start_date": "2024-02-10", "end_date": "2024-02-11"}
+        result = _filter_temporal_window(docs, window)
+        assert len(result) == 2  # all returned, safeguard activated
+
+    def test_empty_list_returns_empty(self):
+        """Empty document list returns empty list."""
+        result = _filter_temporal_window([], {"start_date": "2024-02-10", "end_date": "2024-02-11"})
+        assert result == []
+
+    def test_window_with_only_start_date(self):
+        """Window with only start_date filters events before it."""
+        docs = [
+            self._make_doc("Before", start_date="2024-01-01", end_date="2024-01-05"),
+            self._make_doc("After", start_date="2024-03-01", end_date="2024-03-05"),
+        ]
+        window = {"start_date": "2024-02-01", "end_date": None}
+        result = _filter_temporal_window(docs, window)
+        assert len(result) == 1
+        assert result[0].page_content == "After"
+
+    def test_null_window_returns_all(self):
+        """Window with both null dates returns all documents."""
+        docs = [
+            self._make_doc("Event 1", start_date="2024-01-01", end_date="2024-01-05"),
+            self._make_doc("Event 2", start_date="2024-06-01", end_date="2024-06-05"),
+        ]
+        window = {"start_date": None, "end_date": None}
+        result = _filter_temporal_window(docs, window)
+        assert len(result) == 2
 
 
 # ============== INTEGRATION TESTS ==============

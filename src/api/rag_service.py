@@ -8,6 +8,7 @@ providing a clean interface for the API endpoints.
 import json
 import logging
 import os
+import re
 import time
 import tempfile
 import shutil
@@ -57,6 +58,32 @@ Contexte :
 Question : {question}
 
 Réponse détaillée :"""
+
+# Query analysis prompt for advanced method (Feature 4).
+# Extends the existing off-topic detection with temporal window extraction.
+# Single LLM call — no additional latency cost for the advanced method.
+QUERY_ANALYSIS_PROMPT = """Analyse cette question sur les événements culturels.
+Date du jour : {reference_date}
+
+Réponds en JSON strict :
+{{
+  "is_relevant": true/false,
+  "temporal_window": {{
+    "start_date": "YYYY-MM-DD" ou null,
+    "end_date": "YYYY-MM-DD" ou null
+  }},
+  "reasoning": "explication courte"
+}}
+
+Exemples :
+- "Concerts ce weekend" (ref: 2024-02-06) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-02-10", "end_date": "2024-02-11"}}, "reasoning": "ce weekend = samedi-dimanche suivants"}}
+- "Ce soir ou demain à Annecy" (ref: 2024-02-06) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-02-06", "end_date": "2024-02-07"}}, "reasoning": "ce soir + demain = aujourd'hui et lendemain"}}
+- "Festivals cet été" (ref: 2024-02-06) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-06-01", "end_date": "2024-08-31"}}, "reasoning": "été = juin à août"}}
+- "Quels sont les meilleurs restaurants?" → {{"is_relevant": false, "temporal_window": null, "reasoning": "pas lié aux événements culturels"}}
+- "Que faire à Annecy?" → {{"is_relevant": true, "temporal_window": null, "reasoning": "pas de contrainte temporelle explicite"}}
+
+Question : {question}
+"""
 
 
 def _format_date_french(iso_date: str) -> str:
@@ -206,6 +233,104 @@ def _filter_past_events(
                 filtered.append(doc)
         except ValueError:
             filtered.append(doc)
+    return filtered
+
+
+def _parse_query_analysis_response(text: str) -> dict:
+    """Parse LLM response from query analysis into structured dict.
+
+    Handles JSON potentially wrapped in markdown code blocks.
+    Returns a safe default (is_relevant=True) on parse failure to avoid
+    false negatives — better to attempt retrieval than to reject a valid query.
+    """
+    try:
+        json_match = re.search(r"\{.*\}", text, re.DOTALL)
+        if json_match:
+            result = json.loads(json_match.group())
+            return {
+                "is_relevant": result.get("is_relevant", True),
+                "temporal_window": result.get("temporal_window"),
+                "reasoning": result.get("reasoning", ""),
+            }
+    except (json.JSONDecodeError, AttributeError):
+        pass
+    return {"is_relevant": True, "temporal_window": None, "reasoning": "parse_error"}
+
+
+def _filter_temporal_window(
+    documents: List[Document], temporal_window: dict
+) -> List[Document]:
+    """Keep events overlapping with the LLM-extracted temporal window.
+
+    Unlike _filter_past_events (hard filter), this is a best-effort filter:
+    - Events overlapping the window are kept
+    - Events with missing dates are kept (benefit of the doubt)
+    - If filtering would empty the list, return original (never return nothing)
+
+    Args:
+        documents: List of retrieved documents
+        temporal_window: Dict with "start_date" and/or "end_date" (ISO YYYY-MM-DD or None)
+
+    Returns:
+        Filtered list, or original list if filtering would empty it
+    """
+    if not documents:
+        return documents
+
+    start = temporal_window.get("start_date")
+    end = temporal_window.get("end_date")
+
+    if not start and not end:
+        return documents
+
+    try:
+        window_start = datetime.strptime(start, "%Y-%m-%d").date() if start else None
+        window_end = datetime.strptime(end, "%Y-%m-%d").date() if end else None
+    except ValueError:
+        return documents  # Invalid window dates, skip filtering
+
+    filtered = []
+    for doc in documents:
+        event_start_str = doc.metadata.get("event_start_date")
+        event_end_str = doc.metadata.get("event_end_date")
+
+        if event_start_str is None and event_end_str is None:
+            filtered.append(doc)
+            continue
+
+        try:
+            ev_start = (
+                datetime.strptime(event_start_str, "%Y-%m-%d").date()
+                if event_start_str
+                else None
+            )
+            ev_end = (
+                datetime.strptime(event_end_str, "%Y-%m-%d").date()
+                if event_end_str
+                else None
+            )
+        except ValueError:
+            filtered.append(doc)  # keep events with unparseable dates
+            continue
+
+        # Check overlap: event overlaps window if
+        # event_start <= window_end AND event_end >= window_start
+        # Handle None values generously (assume overlap when unknown)
+        overlaps = True
+        if window_end and ev_start:
+            if ev_start > window_end:
+                overlaps = False
+        if window_start and ev_end:
+            if ev_end < window_start:
+                overlaps = False
+
+        if overlaps:
+            filtered.append(doc)
+
+    # Safeguard: if filtering removed everything, return original
+    if not filtered and documents:
+        return documents
+
     return filtered
 
 
@@ -425,6 +550,24 @@ class RAGService:
 
         return ensemble.invoke(question)
 
+    def _analyze_query(self, question: str, reference_date: str) -> dict:
+        """Analyze query for relevance and temporal intent (advanced method only).
+
+        Calls the LLM once with QUERY_ANALYSIS_PROMPT to extract:
+        - is_relevant: whether the query is about cultural events
+        - temporal_window: extracted date range (if any temporal expression detected)
+        - reasoning: short explanation of the analysis
+
+        Returns safe defaults on parse failure (is_relevant=True, no temporal window).
+        """
+        prompt = QUERY_ANALYSIS_PROMPT.format(
+            reference_date=reference_date,
+            question=question,
+        )
+        response = self.llm.invoke(prompt)
+        text = response.content if hasattr(response, "content") else str(response)
+        return _parse_query_analysis_response(text)
+
     def is_ready(self) -> bool:
         """Check if service is ready to handle requests."""
         return self._initialized and self._index_loaded
@@ -589,12 +732,18 @@ class RAGService:
         """
         Query the RAG system using a manual retrieve-then-generate pipeline.
 
-        Pipeline steps:
+        Pipeline steps (basic/hybrid):
         1. Retrieve candidates (fetch_k = top_k * 10 for filtering headroom)
         2. Filter past events (event_end_date < reference_date)
         3. Slice to top_k
         4. Build prompt with reference_date + context + question
         5. Generate answer via LLM
+
+        Pipeline steps (advanced):
+        1. Query Analysis: off-topic detection + temporal window extraction
+        2. If off-topic → return off-topic response
+        3-5. Same as basic/hybrid
+        6. Apply temporal window filter (if extracted)
 
         Args:
             question: User question
@@ -618,6 +767,33 @@ class RAGService:
         start_time = time.time()
 
         try:
+            # Advanced method: Enhanced Query Analysis (Feature 4)
+            analysis = None
+            if method == "advanced":
+                analysis = self._analyze_query(question, ref_date)
+
+                if not analysis.get("is_relevant", True):
+                    response_time_ms = int((time.time() - start_time) * 1000)
+                    return {
+                        "answer": (
+                            "Je suis spécialisé dans les événements culturels "
+                            "de Savoie, Haute-Savoie et Isère. "
+                            "Votre question ne semble pas porter sur ce sujet. "
+                            "N'hésitez pas à me poser une question sur les "
+                            "événements de la région !"
+                        ),
+                        "sources": [],
+                        "metadata": {
+                            "rag_method": method,
+                            "response_time_ms": response_time_ms,
+                            "retrieved_docs_count": 0,
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "model_version": self.llm_model,
+                            "reference_date": ref_date,
+                            "query_analysis": analysis,
+                        },
+                    }
+
             # 1. Retrieve candidates with generous fetch_k
             fetch_k = top_k * 10
             docs = self._retrieve(question, method, fetch_k=fetch_k)
@@ -625,10 +801,16 @@ class RAGService:
             # 2. Filter past events
             docs = _filter_past_events(docs, ref_date)
 
-            # 3. Slice to top_k
+            # 3. Apply temporal window filter (advanced only, Feature 4)
+            if analysis and analysis.get("temporal_window"):
+                temporal_window = analysis["temporal_window"]
+                if temporal_window.get("start_date") or temporal_window.get("end_date"):
+                    docs = _filter_temporal_window(docs, temporal_window)
+
+            # 4. Slice to top_k
             docs = docs[:top_k]
 
-            # 4. Build prompt with per-request reference_date
+            # 5. Build prompt with per-request reference_date
             context = "\n\n".join(doc.page_content for doc in docs)
             prompt_text = RAG_PROMPT_TEMPLATE.format(
                 reference_date_formatted=_format_date_french(ref_date),
@@ -636,7 +818,7 @@ class RAGService:
                 question=question,
             )
 
-            # 5. Generate answer
+            # 6. Generate answer
             response = self.llm.invoke(prompt_text)
             answer = response.content if hasattr(response, "content") else str(response)
 
@@ -659,17 +841,21 @@ class RAGService:
 
             response_time_ms = int((time.time() - start_time) * 1000)
 
+            metadata = {
+                "rag_method": method,
+                "response_time_ms": response_time_ms,
+                "retrieved_docs_count": len(sources),
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "model_version": self.llm_model,
+                "reference_date": ref_date,
+            }
+            if analysis:
+                metadata["query_analysis"] = analysis
+
             return {
                 "answer": answer,
                 "sources": sources,
-                "metadata": {
-                    "rag_method": method,
-                    "response_time_ms": response_time_ms,
-                    "retrieved_docs_count": len(sources),
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                    "model_version": self.llm_model,
-                    "reference_date": ref_date,
-                },
+                "metadata": metadata,
             }
 
         except Exception as e:
