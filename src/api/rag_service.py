@@ -334,6 +334,52 @@ def _filter_temporal_window(
     return filtered
 
 
+def _temporal_rerank(
+    documents: List[Document],
+    target_date: str,
+    half_life_days: int = 14,
+) -> List[Document]:
+    """Rerank documents by temporal proximity to a target date.
+
+    Uses exponential decay: events further from target_date are pushed down.
+    Score formula: temporal_score = 0.5 ^ (|event_start_date - target_date| / half_life_days)
+
+    Events with missing or malformed dates get score 0 and are placed at the end,
+    preserving their relative order.
+
+    Args:
+        documents: List of retrieved documents
+        target_date: ISO YYYY-MM-DD date to rank proximity against
+        half_life_days: Events this many days away score 50%. Default 14.
+
+    Returns:
+        Documents sorted by temporal proximity (closest first)
+    """
+    if not documents:
+        return documents
+
+    target = datetime.strptime(target_date, "%Y-%m-%d").date()
+
+    scored = []
+    for i, doc in enumerate(documents):
+        start_str = doc.metadata.get("event_start_date")
+        if start_str:
+            try:
+                start = datetime.strptime(start_str, "%Y-%m-%d").date()
+                days_away = abs((start - target).days)
+                score = 0.5 ** (days_away / half_life_days)
+            except ValueError:
+                score = 0.0
+        else:
+            score = 0.0
+        # Use (score, -i) so that ties preserve original order (stable sort)
+        scored.append((score, i, doc))
+
+    # Sort by score descending, then by original index ascending (stable)
+    scored.sort(key=lambda x: (-x[0], x[1]))
+    return [doc for _, _, doc in scored]
+
+
 class RAGService:
     """
     Singleton service for RAG operations.
@@ -735,15 +781,17 @@ class RAGService:
         Pipeline steps (basic/hybrid):
         1. Retrieve candidates (fetch_k = top_k * 10 for filtering headroom)
         2. Filter past events (event_end_date < reference_date)
-        3. Slice to top_k
-        4. Build prompt with reference_date + context + question
-        5. Generate answer via LLM
+        3. Temporal proximity reranking (closest to reference_date first)
+        4. Slice to top_k
+        5. Build prompt with reference_date + context + question
+        6. Generate answer via LLM
 
         Pipeline steps (advanced):
         1. Query Analysis: off-topic detection + temporal window extraction
         2. If off-topic → return off-topic response
-        3-5. Same as basic/hybrid
-        6. Apply temporal window filter (if extracted)
+        3-4. Same as basic/hybrid
+        5. Apply temporal window filter (if extracted)
+        6. Temporal reranking (proximity to window start or reference_date)
 
         Args:
             question: User question
@@ -802,15 +850,24 @@ class RAGService:
             docs = _filter_past_events(docs, ref_date)
 
             # 3. Apply temporal window filter (advanced only, Feature 4)
+            temporal_window = None
             if analysis and analysis.get("temporal_window"):
                 temporal_window = analysis["temporal_window"]
                 if temporal_window.get("start_date") or temporal_window.get("end_date"):
                     docs = _filter_temporal_window(docs, temporal_window)
 
-            # 4. Slice to top_k
+            # 4. Temporal proximity reranking (Feature 5)
+            # Advanced: rank by proximity to temporal window start (if extracted)
+            # Basic/Hybrid: rank by proximity to reference_date
+            rerank_target = ref_date
+            if temporal_window and temporal_window.get("start_date"):
+                rerank_target = temporal_window["start_date"]
+            docs = _temporal_rerank(docs, target_date=rerank_target)
+
+            # 5. Slice to top_k
             docs = docs[:top_k]
 
-            # 5. Build prompt with per-request reference_date
+            # 6. Build prompt with per-request reference_date
             context = "\n\n".join(doc.page_content for doc in docs)
             prompt_text = RAG_PROMPT_TEMPLATE.format(
                 reference_date_formatted=_format_date_french(ref_date),

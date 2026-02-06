@@ -24,6 +24,7 @@ from src.api.rag_service import (
     _filter_temporal_window,
     _format_date_french,
     _parse_query_analysis_response,
+    _temporal_rerank,
     DEFAULT_REFERENCE_DATE,
     QUERY_ANALYSIS_PROMPT,
     RAG_PROMPT_TEMPLATE,
@@ -740,6 +741,107 @@ class TestFilterTemporalWindow:
         window = {"start_date": None, "end_date": None}
         result = _filter_temporal_window(docs, window)
         assert len(result) == 2
+
+
+# ============== TEMPORAL RERANKING TESTS (Feature 5) ==============
+
+
+class TestTemporalRerank:
+    """Test _temporal_rerank() function (Feature 5)."""
+
+    def _make_doc(self, content, start_date=None):
+        """Helper to create a Document with start date metadata."""
+        metadata = {}
+        if start_date is not None:
+            metadata["event_start_date"] = start_date
+        return Document(page_content=content, metadata=metadata)
+
+    def test_closer_event_ranks_first(self):
+        """Event closer to target_date ranks higher than distant event."""
+        docs = [
+            self._make_doc("Far event", start_date="2024-03-15"),
+            self._make_doc("Close event", start_date="2024-02-08"),
+        ]
+        result = _temporal_rerank(docs, target_date="2024-02-06")
+        assert result[0].page_content == "Close event"
+        assert result[1].page_content == "Far event"
+
+    def test_same_day_event_ranks_first(self):
+        """Event on target_date gets highest score."""
+        docs = [
+            self._make_doc("Tomorrow", start_date="2024-02-07"),
+            self._make_doc("Today", start_date="2024-02-06"),
+            self._make_doc("Next week", start_date="2024-02-13"),
+        ]
+        result = _temporal_rerank(docs, target_date="2024-02-06")
+        assert result[0].page_content == "Today"
+
+    def test_half_life_scoring(self):
+        """Event exactly half_life_days away scores ~50%."""
+        docs = [
+            self._make_doc("14 days away", start_date="2024-02-20"),
+            self._make_doc("Same day", start_date="2024-02-06"),
+        ]
+        result = _temporal_rerank(docs, target_date="2024-02-06", half_life_days=14)
+        # Same day should rank first
+        assert result[0].page_content == "Same day"
+        # 14-day event should have temporal_score ~0.5
+        assert result[1].page_content == "14 days away"
+
+    def test_no_date_events_at_end(self):
+        """Events with no start_date are pushed to the end."""
+        docs = [
+            self._make_doc("No date event"),
+            self._make_doc("Has date", start_date="2024-02-10"),
+        ]
+        result = _temporal_rerank(docs, target_date="2024-02-06")
+        assert result[0].page_content == "Has date"
+        assert result[1].page_content == "No date event"
+
+    def test_no_date_events_preserve_relative_order(self):
+        """Multiple no-date events preserve their original relative order."""
+        docs = [
+            self._make_doc("No date A"),
+            self._make_doc("No date B"),
+            self._make_doc("Has date", start_date="2024-02-10"),
+        ]
+        result = _temporal_rerank(docs, target_date="2024-02-06")
+        assert result[0].page_content == "Has date"
+        assert result[1].page_content == "No date A"
+        assert result[2].page_content == "No date B"
+
+    def test_different_target_dates_change_ranking(self):
+        """Different target dates produce different rankings."""
+        docs = [
+            self._make_doc("Feb event", start_date="2024-02-10"),
+            self._make_doc("June event", start_date="2024-06-15"),
+        ]
+        result_feb = _temporal_rerank(docs, target_date="2024-02-06")
+        result_jun = _temporal_rerank(docs, target_date="2024-06-10")
+        assert result_feb[0].page_content == "Feb event"
+        assert result_jun[0].page_content == "June event"
+
+    def test_single_event_unchanged(self):
+        """Single-event list is returned unchanged."""
+        docs = [self._make_doc("Only event", start_date="2024-02-10")]
+        result = _temporal_rerank(docs, target_date="2024-02-06")
+        assert len(result) == 1
+        assert result[0].page_content == "Only event"
+
+    def test_empty_list_returns_empty(self):
+        """Empty document list returns empty list."""
+        result = _temporal_rerank([], target_date="2024-02-06")
+        assert result == []
+
+    def test_malformed_date_treated_as_no_date(self):
+        """Events with malformed start_date are treated like no-date events."""
+        docs = [
+            self._make_doc("Bad date", start_date="not-a-date"),
+            self._make_doc("Good date", start_date="2024-02-10"),
+        ]
+        result = _temporal_rerank(docs, target_date="2024-02-06")
+        assert result[0].page_content == "Good date"
+        assert result[1].page_content == "Bad date"
 
 
 # ============== INTEGRATION TESTS ==============
