@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # Default reference date for temporal queries.
 # The OpenAgenda dataset peaks in 2024 (47% of events). This date places
 # the user in the densest data period for meaningful temporal queries.
-DEFAULT_REFERENCE_DATE = os.getenv("DEFAULT_REFERENCE_DATE", "2024-02-06")
+DEFAULT_REFERENCE_DATE = os.getenv("DEFAULT_REFERENCE_DATE", "2024-05-16")
 
 # RAG prompt template with temporal awareness
 RAG_PROMPT_TEMPLATE = """Tu es un assistant spécialisé dans les événements culturels de Savoie (73), Haute-Savoie (74) et Isère (38).
@@ -76,9 +76,9 @@ Réponds en JSON strict :
 }}
 
 Exemples :
-- "Concerts ce weekend" (ref: 2024-02-06) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-02-10", "end_date": "2024-02-11"}}, "reasoning": "ce weekend = samedi-dimanche suivants"}}
-- "Ce soir ou demain à Annecy" (ref: 2024-02-06) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-02-06", "end_date": "2024-02-07"}}, "reasoning": "ce soir + demain = aujourd'hui et lendemain"}}
-- "Festivals cet été" (ref: 2024-02-06) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-06-01", "end_date": "2024-08-31"}}, "reasoning": "été = juin à août"}}
+- "Concerts ce weekend" (ref: 2024-05-16) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-05-18", "end_date": "2024-05-19"}}, "reasoning": "ce weekend = samedi-dimanche suivants"}}
+- "Ce soir ou demain à Annecy" (ref: 2024-05-16) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-05-16", "end_date": "2024-05-17"}}, "reasoning": "ce soir + demain = aujourd'hui et lendemain"}}
+- "Festivals cet été" (ref: 2024-05-16) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-06-01", "end_date": "2024-08-31"}}, "reasoning": "été = juin à août"}}
 - "Quels sont les meilleurs restaurants?" → {{"is_relevant": false, "temporal_window": null, "reasoning": "pas lié aux événements culturels"}}
 - "Que faire à Annecy?" → {{"is_relevant": true, "temporal_window": null, "reasoning": "pas de contrainte temporelle explicite"}}
 
@@ -89,7 +89,7 @@ Question : {question}
 def _format_date_french(iso_date: str) -> str:
     """Format an ISO date string as a French date.
 
-    Example: "2024-02-06" → "mardi 6 février 2024"
+    Example: "2024-05-16" → "jeudi 16 mai 2024"
     """
     DAYS_FR = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
     MONTHS_FR = [

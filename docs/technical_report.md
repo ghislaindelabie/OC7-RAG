@@ -253,8 +253,8 @@ The advanced method's query analysis LLM call was extended to also extract tempo
 ```
 
 Examples of temporal window extraction:
-- "Concerts ce weekend" (ref: 2024-02-06) → window: Feb 10-11
-- "Festivals cet été" (ref: 2024-02-06) → window: Jun 1 - Aug 31
+- "Concerts ce weekend" (ref: 2024-05-16) → window: May 18-19
+- "Festivals cet été" (ref: 2024-05-16) → window: Jun 1 - Aug 31
 - "Que faire à Annecy?" → no temporal window (null)
 
 **Temporal Window Filter** (v1.2.0):
@@ -475,7 +475,7 @@ Regex was considered and rejected for parsing temporal expressions. Reasons:
     "question": "Quels concerts à Annecy ce weekend?",
     "rag_method": "hybrid",
     "top_k": 5,
-    "reference_date": "2024-02-06"
+    "reference_date": "2024-05-16"
 }
 ```
 
@@ -483,7 +483,7 @@ Regex was considered and rejected for parsing temporal expressions. Reasons:
 - `question`: 3-1000 characters, stripped whitespace, max 5 consecutive repeated chars
 - `rag_method`: Enum ["basic", "hybrid", "advanced"], default "hybrid"
 - `top_k`: Integer 1-20, default 5
-- `reference_date` (v1.2.0): Optional ISO date (YYYY-MM-DD), default "2024-02-06". Used as "today" for interpreting relative temporal expressions.
+- `reference_date` (v1.2.0): Optional ISO date (YYYY-MM-DD), default "2024-05-16". Used as "today" for interpreting relative temporal expressions.
 
 **Response Schema** (v1.2.0 — with temporal metadata):
 ```json
@@ -504,7 +504,7 @@ Regex was considered and rejected for parsing temporal expressions. Reasons:
         "retrieved_docs_count": 5,
         "timestamp": "2026-02-06T10:30:00Z",
         "model_version": "mistral-small-latest",
-        "reference_date": "2024-02-06"
+        "reference_date": "2024-05-16"
     }
 }
 ```
@@ -675,7 +675,7 @@ id,question,expected_answer,category,difficulty
 
 **Temporal Category** (v1.2.0):
 
-The 12 temporal questions are **data-driven**: expected answers were built by analyzing real events in the dataset around the reference date (2024-02-06). Categories include:
+The 12 temporal questions are **data-driven**: expected answers were built by analyzing real events in the dataset around the reference date (2024-05-16). Categories include:
 
 | Subcategory | Example | What It Tests |
 |-------------|---------|---------------|
@@ -1208,7 +1208,7 @@ docker compose ps
 **Solution Implemented** (v1.2.0 — 6 features, 62 new tests):
 
 1. **ISO Date Metadata**: Parsed `firstdate_begin`/`lastdate_end` into structured ISO dates at indexing time
-2. **Reference Date API Parameter**: `reference_date` (default: 2024-02-06) injected into prompts so the LLM knows "today"
+2. **Reference Date API Parameter**: `reference_date` (default: 2024-05-16) injected into prompts so the LLM knows "today"
 3. **Manual Pipeline**: Replaced `RetrievalQA` chains with explicit retrieve-then-generate, making `top_k` honestly control retrieval (was previously cosmetic)
 4. **Past Event Filter**: Post-retrieval removal of events ending before reference_date
 5. **Temporal Proximity Reranking**: Exponential decay ranking (half-life: 14 days) — events closer to target date rank first
@@ -1410,7 +1410,7 @@ This project successfully implemented a production-ready RAG system for cultural
 - Off-topic query detection needs improvement (44% failure rate)
 - Single-user deployment (no authentication)
 - SSH tunnel required for external access
-- Reference date defaults to 2024-02-06 (dataset peak) — needs updating when dataset is refreshed
+- Reference date defaults to 2024-05-16 (dataset peak) — needs updating when dataset is refreshed
 - FAISS post-filtering may return fewer than top_k results if many events are past
 
 ### 10.4 Recommendations
@@ -1502,7 +1502,7 @@ OC7-RAG/
 | Docker Image Size | 1.45 GB |
 | Evaluation PASS Rate | 66.7% (all methods) |
 | Best Robustness | Basic RAG (0% failures) |
-| Default Reference Date | 2024-02-06 |
+| Default Reference Date | 2024-05-16 |
 | Temporal Rerank Half-life | 14 days |
 | Data Storage | Stateless (no request/response persistence) |
 

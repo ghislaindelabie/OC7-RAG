@@ -450,4 +450,4 @@ class TestReferenceDate:
         )
         data = response.json()
         assert "reference_date" in data["metadata"]
-        assert data["metadata"]["reference_date"] == "2024-02-06"
+        assert data["metadata"]["reference_date"] == "2024-05-16"

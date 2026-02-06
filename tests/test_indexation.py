@@ -451,8 +451,8 @@ class TestTemporalConstants:
 
         dt = datetime.strptime(DEFAULT_REFERENCE_DATE, "%Y-%m-%d")
         assert dt.year == 2024
-        assert dt.month == 2
-        assert dt.day == 6
+        assert dt.month == 5
+        assert dt.day == 16
 
     def test_prompt_template_has_reference_date_placeholder(self):
         """RAG_PROMPT_TEMPLATE contains the reference_date_formatted variable."""

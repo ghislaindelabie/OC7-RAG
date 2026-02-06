@@ -17,7 +17,7 @@ Complete changelog documenting the evolution of the RAG Cultural Events Assistan
 - Graceful handling of missing/malformed dates
 
 #### Reference Date API (Feature 2)
-- `reference_date` parameter on `/api/v1/ask` (ISO YYYY-MM-DD, default `2024-02-06`)
+- `reference_date` parameter on `/api/v1/ask` (ISO YYYY-MM-DD, default `2024-05-16`)
 - Temporal prompt instructions: "Date du jour", past event warning, weekend interpretation
 - `_format_date_french()` for natural French date display in prompts
 
@@ -39,7 +39,7 @@ Complete changelog documenting the evolution of the RAG Cultural Events Assistan
 
 #### Temporal Evaluation Questions (Feature 6)
 - 12 data-driven temporal questions (replacing 4 generic ones)
-- Based on real events around reference date 2024-02-06
+- Based on real events around reference date 2024-05-16
 - Categories: weekend, demain, ce soir, month, season, past reference, combination
 
 ### 📊 Test Coverage

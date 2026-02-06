@@ -31,9 +31,9 @@ class QuestionRequest(BaseModel):
     reference_date: Optional[str] = Field(
         default=None,
         description="Reference date for temporal queries (ISO format: YYYY-MM-DD). "
-        "Defaults to 2024-02-06. The RAG system uses this as 'today' "
+        "Defaults to 2024-05-16. The RAG system uses this as 'today' "
         "to interpret relative date expressions like 'ce weekend'.",
-        examples=["2024-02-06", "2024-07-15"],
+        examples=["2024-05-16", "2024-07-15"],
         pattern=r"^\d{4}-\d{2}-\d{2}$",
     )
 
@@ -60,7 +60,7 @@ class QuestionRequest(BaseModel):
                 "question": "Quels sont les événements gratuits à Grenoble ce mois-ci?",
                 "rag_method": "hybrid",
                 "top_k": 5,
-                "reference_date": "2024-02-06",
+                "reference_date": "2024-05-16",
             }
         }
     )
@@ -108,7 +108,7 @@ class QueryMetadata(BaseModel):
                 "retrieved_docs_count": 5,
                 "timestamp": "2026-01-29T18:30:00.000000Z",
                 "model_version": "mistral-small-latest",
-                "reference_date": "2024-02-06",
+                "reference_date": "2024-05-16",
             }
         }
     )

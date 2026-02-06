@@ -46,7 +46,7 @@ def mock_rag_service():
             "retrieved_docs_count": 2,
             "timestamp": "2026-01-29T18:30:00.000000Z",
             "model_version": "mistral-small-latest",
-            "reference_date": "2024-02-06",
+            "reference_date": "2024-05-16",
         },
     }
 

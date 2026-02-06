@@ -19,7 +19,7 @@ The RAG system currently has **no temporal awareness**. It retrieves events pure
 
 ### Data Context
 
-The OpenAgenda dataset effectively peaks in **2024** (47% of events). The system must define a **reference date** to make temporal queries meaningful. We choose **2024-02-06** as the default reference date, placing the user in the middle of the densest data period.
+The OpenAgenda dataset effectively peaks in **2024** (47% of events). The system must define a **reference date** to make temporal queries meaningful. We choose **2024-05-16** as the default reference date, placing the user in the middle of the densest data period.
 
 ### Current State (Before)
 
@@ -36,7 +36,7 @@ The OpenAgenda dataset effectively peaks in **2024** (47% of events). The system
 
 | Layer | Basic/Hybrid | Advanced |
 |-------|-------------|----------|
-| API schema | `reference_date` param (ISO, default `2024-02-06`) | Same |
+| API schema | `reference_date` param (ISO, default `2024-05-16`) | Same |
 | Query analysis | None (no extra LLM call) | Enhanced: off-topic detection + temporal window extraction |
 | Prompt | Injects reference date + temporal instructions | Same |
 | Metadata | `event_start_date` and `event_end_date` as ISO strings | Same |
@@ -53,9 +53,9 @@ The OpenAgenda dataset effectively peaks in **2024** (47% of events). The system
 
 The `/api/v1/ask` endpoint will accept an optional `reference_date` field (ISO 8601 format: `YYYY-MM-DD`).
 
-- **Default**: `2024-02-06` (hardcoded constant, configurable via env var `DEFAULT_REFERENCE_DATE`)
+- **Default**: `2024-05-16` (hardcoded constant, configurable via env var `DEFAULT_REFERENCE_DATE`)
 - **Rationale**: API consumers can set their own reference date for flexibility. The default places queries in the densest data period (2024).
-- **Web app**: Will display a notice: "For demonstration purposes, the reference date is set to February 6, 2024" and will not expose a date picker (demo app, fixed date).
+- **Web app**: Will display a notice: "For demonstration purposes, the reference date is set to May 16, 2024" and will not expose a date picker (demo app, fixed date).
 
 ### DD-2: ISO Dates Everywhere
 
@@ -117,7 +117,7 @@ Currently `fetch_k` is not an API parameter, and `top_k` from the API is only us
 
 The system prompt is the **primary temporal mechanism** for Basic/Hybrid methods and a **complementary mechanism** for Advanced:
 
-- Injects the reference date ("Date du jour : jeudi 6 février 2024")
+- Injects the reference date ("Date du jour : jeudi 16 mai 2024")
 - Instructs the LLM to never recommend past events
 - Instructs the LLM to interpret relative expressions ("ce weekend", "demain") relative to the reference date
 - Instructs the LLM to sort events by date, closest first
@@ -190,9 +190,9 @@ Note: Prompt uses DEFAULT_REFERENCE_DATE at chain init. Per-request prompt injec
 reference_date: Optional[str] = Field(
     default=None,
     description="Reference date for temporal queries (ISO format: YYYY-MM-DD). "
-                "Defaults to 2024-02-06. The RAG system uses this as 'today' "
+                "Defaults to 2024-05-16. The RAG system uses this as 'today' "
                 "to interpret relative date expressions like 'ce weekend'.",
-    examples=["2024-02-06", "2024-07-15"],
+    examples=["2024-05-16", "2024-07-15"],
     pattern=r"^\d{4}-\d{2}-\d{2}$"
 )
 ```
@@ -222,16 +222,16 @@ Réponse détaillée :"""
 
 **`static/index.html`** — Add visible notice:
 ```
-⚠️ Demo mode: reference date is February 6, 2024 (dataset coverage period)
+⚠️ Demo mode: reference date is May 16, 2024 (dataset coverage period)
 ```
 
 **Constants**:
 ```python
-DEFAULT_REFERENCE_DATE = os.getenv("DEFAULT_REFERENCE_DATE", "2024-02-06")
+DEFAULT_REFERENCE_DATE = os.getenv("DEFAULT_REFERENCE_DATE", "2024-05-16")
 ```
 
 **Tests**:
-- Request without `reference_date` uses default `2024-02-06`
+- Request without `reference_date` uses default `2024-05-16`
 - Request with valid ISO date uses that date
 - Request with invalid date format returns 422
 - Prompt contains the formatted reference date
@@ -265,7 +265,7 @@ This was not a deliberate design choice but a side-effect of using `RetrievalQA`
 Replace the `RetrievalQA` chain with an explicit pipeline where each step is controllable per-request:
 
 ```python
-def query(self, question, method="hybrid", top_k=5, reference_date="2024-02-06"):
+def query(self, question, method="hybrid", top_k=5, reference_date="2024-05-16"):
     # 1. Retrieve candidates (generous fetch_k for date filtering headroom)
     fetch_k = top_k * 10
     docs = self._retrieve(question, method, fetch_k=fetch_k)
@@ -348,7 +348,7 @@ def _filter_past_events(
 
 **Notebook validation**:
 - Query "concerts à Annecy" with `top_k=3` and `top_k=10`, verify different result counts
-- Query with `reference_date=2024-02-06`, verify no events before February 2024
+- Query with `reference_date=2024-05-16`, verify no events before May 2024
 - Check that results are still relevant (not empty due to over-filtering)
 - Compare answer quality before/after pipeline rework
 
@@ -382,9 +382,9 @@ Réponds en JSON strict :
 }}
 
 Exemples :
-- "Concerts ce weekend" (ref: 2024-02-06) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-02-10", "end_date": "2024-02-11"}}, "reasoning": "ce weekend = samedi-dimanche suivants"}}
-- "Ce soir ou demain à Annecy" (ref: 2024-02-06) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-02-06", "end_date": "2024-02-07"}}, "reasoning": "ce soir + demain = aujourd'hui et lendemain"}}
-- "Festivals cet été" (ref: 2024-02-06) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-06-01", "end_date": "2024-08-31"}}, "reasoning": "été = juin à août"}}
+- "Concerts ce weekend" (ref: 2024-05-16) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-05-18", "end_date": "2024-05-19"}}, "reasoning": "ce weekend = samedi-dimanche suivants"}}
+- "Ce soir ou demain à Annecy" (ref: 2024-05-16) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-05-16", "end_date": "2024-05-17"}}, "reasoning": "ce soir + demain = aujourd'hui et lendemain"}}
+- "Festivals cet été" (ref: 2024-05-16) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-06-01", "end_date": "2024-08-31"}}, "reasoning": "été = juin à août"}}
 - "Quels sont les meilleurs restaurants?" → {{"is_relevant": false, "temporal_window": null, "reasoning": "pas lié aux événements culturels"}}
 - "Que faire à Annecy?" → {{"is_relevant": true, "temporal_window": null, "reasoning": "pas de contrainte temporelle explicite"}}
 
@@ -435,8 +435,8 @@ def _filter_temporal_window(
 **Design safeguard**: If the temporal window filter would remove ALL documents, it is skipped and all candidates are passed through. This prevents the LLM from over-filtering.
 
 **Tests**:
-- "Concerts ce weekend" (ref: 2024-02-06) → temporal_window = (2024-02-10, 2024-02-11)
-- "Ce soir ou demain" (ref: 2024-02-06) → temporal_window = (2024-02-06, 2024-02-07)
+- "Concerts ce weekend" (ref: 2024-05-16) → temporal_window = (2024-05-18, 2024-05-19)
+- "Ce soir ou demain" (ref: 2024-05-16) → temporal_window = (2024-05-16, 2024-05-17)
 - "Événements en mars" → temporal_window = (2024-03-01, 2024-03-31)
 - "Que faire à Annecy?" → temporal_window = null (no temporal constraint)
 - Off-topic query → is_relevant = false
@@ -553,10 +553,10 @@ Advanced:
 ```python
 {
     "rag_method": "advanced",
-    "reference_date": "2024-02-06",
+    "reference_date": "2024-05-16",
     "temporal_window": {                    # advanced only, null for basic/hybrid
-        "start_date": "2024-02-10",
-        "end_date": "2024-02-11"
+        "start_date": "2024-05-18",
+        "end_date": "2024-05-19"
     },
     "candidates_fetched": 50,
     "candidates_after_date_filter": 12,
@@ -566,10 +566,10 @@ Advanced:
 
 #### Temporal Evaluation Questions
 
-Extend `tests/test_data/test_questions.csv` with temporal queries. These must be **data-driven**: before writing expected answers, analyse the actual events in the dataset around the reference date (2024-02-06) to build realistic ground truth.
+Extend `tests/test_data/test_questions.csv` with temporal queries. These must be **data-driven**: before writing expected answers, analyse the actual events in the dataset around the reference date (2024-05-16) to build realistic ground truth.
 
 **Methodology**:
-1. Query the dataset for events around 2024-02-06 (e.g., Feb 6-12 for "ce weekend", Feb 7 for "demain")
+1. Query the dataset for events around 2024-05-16 (e.g., Feb 6-12 for "ce weekend", Feb 7 for "demain")
 2. Identify real events that exist in the data for those dates
 3. Build expected answers referencing actual event titles, locations, dates
 4. Include edge cases where no events match (e.g., a very specific date with no events)
@@ -578,7 +578,7 @@ Extend `tests/test_data/test_questions.csv` with temporal queries. These must be
 
 | Category | Example Query | What We Test |
 |----------|--------------|--------------|
-| Explicit day | "Que faire demain à Annecy?" | LLM interprets "demain" as 2024-02-07 |
+| Explicit day | "Que faire demain à Annecy?" | LLM interprets "demain" as 2024-05-17 |
 | Weekend | "Concerts ce weekend en Savoie" | LLM picks Sat-Sun Feb 10-11 |
 | Combination | "Ce soir ou demain à Grenoble" | LLM handles OR temporal logic |
 | Month | "Événements en mars à Chambéry" | Correct month scoping |
@@ -598,8 +598,8 @@ Extend `tests/test_data/test_questions.csv` with temporal queries. These must be
 - This file — Mark features as complete
 
 **Integration tests**:
-- Full pipeline test: "Concerts ce weekend à Annecy" with reference_date=2024-02-06
-  → Returns only events on or after 2024-02-06
+- Full pipeline test: "Concerts ce weekend à Annecy" with reference_date=2024-05-16
+  → Returns only events on or after 2024-05-16
 - Full pipeline test: Same query with reference_date=2024-07-15
   → Returns different events (July period)
 - Advanced method extracts temporal window correctly
@@ -678,7 +678,7 @@ Each feature branch merged to `v1.2.0` via PR. Final `v1.2.0 → main` PR when a
 
 ## Open Questions (For Review)
 
-1. **Default reference date**: `2024-02-06` — Is this the right choice? Should it be closer to the data peak (e.g., mid-2024)?
+1. **Default reference date**: `2024-05-16` — Is this the right choice? Should it be closer to the data peak (e.g., mid-2024)?
 2. **fetch_k multiplier**: `top_k * 10` — Should it be higher for safety? Lower for performance?
 3. **Half-life for temporal reranking**: `14 days` — Events 2 weeks away get 50% temporal score. Too aggressive? Too lenient?
 4. **Temporal evaluation question count**: 10-15 seems right for a POC. Enough to validate, not overkill?
@@ -711,7 +711,7 @@ An alternative to metadata filtering is enriching the search query with temporal
 query = "concerts ce weekend"
 
 # Enriched query (for embedding)
-enriched = "concerts ce weekend (samedi 10 février 2024, dimanche 11 février 2024)"
+enriched = "concerts ce weekend (samedi 18 mai 2024, dimanche 19 mai 2024)"
 ```
 
 **Pros**: No metadata filtering needed, works with vanilla FAISS
