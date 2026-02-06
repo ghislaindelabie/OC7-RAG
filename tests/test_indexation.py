@@ -18,7 +18,12 @@ from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import FakeEmbeddings
 
-from src.api.rag_service import _build_metadata
+from src.api.rag_service import (
+    _build_metadata,
+    _format_date_french,
+    DEFAULT_REFERENCE_DATE,
+    RAG_PROMPT_TEMPLATE,
+)
 
 
 # ============== FIXTURES ==============
@@ -427,6 +432,59 @@ class TestMetadataDateParsing:
         results = vectorstore.similarity_search("concert", k=1)
         assert "event_start_date" in results[0].metadata
         assert "event_year" in results[0].metadata
+
+
+# ============== TEMPORAL CONSTANTS TESTS ==============
+
+
+class TestTemporalConstants:
+    """Test temporal constants and helpers (Feature 2)."""
+
+    def test_default_reference_date_is_valid_iso(self):
+        """DEFAULT_REFERENCE_DATE is a valid ISO date string."""
+        from datetime import datetime
+
+        dt = datetime.strptime(DEFAULT_REFERENCE_DATE, "%Y-%m-%d")
+        assert dt.year == 2024
+        assert dt.month == 2
+        assert dt.day == 6
+
+    def test_prompt_template_has_reference_date_placeholder(self):
+        """RAG_PROMPT_TEMPLATE contains the reference_date_formatted variable."""
+        assert "{reference_date_formatted}" in RAG_PROMPT_TEMPLATE
+
+    def test_prompt_template_has_temporal_instructions(self):
+        """RAG_PROMPT_TEMPLATE contains temporal instructions for the LLM."""
+        assert "Date du jour" in RAG_PROMPT_TEMPLATE
+        assert "JAMAIS" in RAG_PROMPT_TEMPLATE
+        assert "ce weekend" in RAG_PROMPT_TEMPLATE.lower()
+
+    def test_prompt_template_has_context_and_question(self):
+        """RAG_PROMPT_TEMPLATE still has context and question placeholders."""
+        assert "{context}" in RAG_PROMPT_TEMPLATE
+        assert "{question}" in RAG_PROMPT_TEMPLATE
+
+    def test_format_date_french_standard(self):
+        """_format_date_french formats dates correctly in French."""
+        # 2024-02-06 is a Tuesday
+        result = _format_date_french("2024-02-06")
+        assert result == "mardi 6 février 2024"
+
+    def test_format_date_french_weekend(self):
+        """_format_date_french handles weekend days."""
+        # 2024-02-10 is a Saturday
+        result = _format_date_french("2024-02-10")
+        assert result == "samedi 10 février 2024"
+
+    def test_format_date_french_december(self):
+        """_format_date_french handles December correctly."""
+        result = _format_date_french("2024-12-25")
+        assert result == "mercredi 25 décembre 2024"
+
+    def test_format_date_french_invalid_returns_input(self):
+        """_format_date_french returns input string for invalid dates."""
+        result = _format_date_french("not-a-date")
+        assert result == "not-a-date"
 
 
 # ============== INTEGRATION TESTS ==============

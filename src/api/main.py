@@ -143,7 +143,10 @@ async def ask_question(request: QuestionRequest):
     try:
         # Query the RAG system
         result = rag_service.query(
-            question=request.question, method=request.rag_method, top_k=request.top_k
+            question=request.question,
+            method=request.rag_method,
+            top_k=request.top_k,
+            reference_date=request.reference_date,
         )
 
         # Build response with proper schema types
@@ -166,6 +169,7 @@ async def ask_question(request: QuestionRequest):
             retrieved_docs_count=result["metadata"]["retrieved_docs_count"],
             timestamp=result["metadata"]["timestamp"],
             model_version=result["metadata"].get("model_version"),
+            reference_date=result["metadata"].get("reference_date"),
         )
 
         return AnswerResponse(answer=result["answer"], sources=sources, metadata=metadata)

@@ -34,17 +34,49 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# RAG prompt template (same as in evaluation script)
-RAG_PROMPT_TEMPLATE = """Tu es un assistant spécialisé dans les événements culturels de Savoie, Haute-Savoie et Isère.
+# Default reference date for temporal queries.
+# The OpenAgenda dataset peaks in 2024 (47% of events). This date places
+# the user in the densest data period for meaningful temporal queries.
+DEFAULT_REFERENCE_DATE = os.getenv("DEFAULT_REFERENCE_DATE", "2024-02-06")
+
+# RAG prompt template with temporal awareness
+RAG_PROMPT_TEMPLATE = """Tu es un assistant spécialisé dans les événements culturels de Savoie (73), Haute-Savoie (74) et Isère (38).
+
+Date du jour : {reference_date_formatted}
+
+Instructions temporelles :
+- Ne recommande JAMAIS d'événements dont la date est passée par rapport à la date du jour.
+- Si l'utilisateur demande "ce weekend", il s'agit du samedi et dimanche les plus proches après la date du jour.
+- Trie les événements par date, les plus proches en premier.
+- Si tous les événements du contexte sont passés, indique-le clairement.
+
 Utilise les informations suivantes pour répondre à la question de l'utilisateur.
 Si tu ne trouves pas l'information dans le contexte, dis-le clairement.
 
-Contexte:
+Contexte :
 {context}
 
-Question: {question}
+Question : {question}
 
-Réponse détaillée:"""
+Réponse détaillée :"""
+
+
+def _format_date_french(iso_date: str) -> str:
+    """Format an ISO date string as a French date.
+
+    Example: "2024-02-06" → "mardi 6 février 2024"
+    """
+    DAYS_FR = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+    MONTHS_FR = [
+        "", "janvier", "février", "mars", "avril", "mai", "juin",
+        "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+    ]
+    try:
+        dt = datetime.strptime(iso_date, "%Y-%m-%d")
+        day_name = DAYS_FR[dt.weekday()]
+        return f"{day_name} {dt.day} {MONTHS_FR[dt.month]} {dt.year}"
+    except (ValueError, IndexError):
+        return iso_date
 
 
 def _clean_html(html_text: str) -> str:
@@ -307,7 +339,11 @@ class RAGService:
             return
 
         prompt = PromptTemplate(
-            template=RAG_PROMPT_TEMPLATE, input_variables=["context", "question"]
+            template=RAG_PROMPT_TEMPLATE,
+            input_variables=["context", "question"],
+            partial_variables={
+                "reference_date_formatted": _format_date_french(DEFAULT_REFERENCE_DATE)
+            },
         )
 
         # Basic RAG (FAISS only)
@@ -519,7 +555,13 @@ class RAGService:
         )
         return filtered_events
 
-    def query(self, question: str, method: str = "hybrid", top_k: int = 5) -> Dict[str, Any]:
+    def query(
+        self,
+        question: str,
+        method: str = "hybrid",
+        top_k: int = 5,
+        reference_date: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
         Query the RAG system.
 
@@ -527,6 +569,8 @@ class RAGService:
             question: User question
             method: RAG method ("basic", "hybrid", or "advanced")
             top_k: Number of documents to retrieve
+            reference_date: ISO date (YYYY-MM-DD) used as "today" for temporal queries.
+                           Defaults to DEFAULT_REFERENCE_DATE.
 
         Returns:
             Dictionary with answer, sources, and metadata
@@ -537,6 +581,7 @@ class RAGService:
         if method not in self.chains:
             raise ValueError(f"Unknown RAG method: {method}. Available: {list(self.chains.keys())}")
 
+        ref_date = reference_date or DEFAULT_REFERENCE_DATE
         start_time = time.time()
 
         try:
@@ -577,6 +622,7 @@ class RAGService:
                     "retrieved_docs_count": len(sources),
                     "timestamp": datetime.utcnow().isoformat() + "Z",
                     "model_version": self.llm_model,
+                    "reference_date": ref_date,
                 },
             }
 
