@@ -743,62 +743,79 @@ Respond in JSON format:
 
 ### 4.4 Evaluation Results
 
-**Dataset**: 18 questions (subset of 64)
+#### v1.0 Baseline (18 questions, no temporal features)
 
-**Results Summary**:
+| Method | PASS | PARTIAL | FAIL |
+|--------|------|---------|------|
+| Basic | 66.7% (12) | 33.3% (6) | 0.0% (0) |
+| Hybrid | 66.7% (12) | 16.7% (3) | 16.7% (3) |
+| Advanced | 66.7% (12) | 11.1% (2) | 16.7% (3) |
 
-| Method | PASS | PARTIAL | FAIL | Total Score |
-|--------|------|---------|------|-------------|
-| Basic | 66.7% (12) | 33.3% (6) | 0.0% (0) | **Best Robustness** |
-| Hybrid | 66.7% (12) | 16.7% (3) | 16.7% (3) | Balanced |
-| Advanced | 66.7% (12) | 11.1% (2) | 16.7% (3) | Best Quality |
+#### v1.2.0 Full Evaluation (64 questions, with temporal features)
+
+**Dataset**: All 64 questions (28 factual, 11 complex, 7 off-topic, 6 vague, 12 temporal)
+**Reference date**: 2024-05-16 (Nuit des Musées weekend)
+**Methods tested**: Basic, Hybrid (Advanced excluded — memory constraints on 3.7GB server)
+
+| Method | PASS | PARTIAL | FAIL | Avg Response Time |
+|--------|------|---------|------|-------------------|
+| **Basic** | **68.8%** (44) | 10.9% (7) | 20.3% (13) | 3.5s |
+| Hybrid | 43.8% (28) | 32.8% (21) | 23.4% (15) | 2.5s |
+
+**By Category**:
+
+| Category | Basic PASS | Hybrid PASS | Insight |
+|----------|------------|-------------|---------|
+| Factual (28) | **85.7%** (24) | 32.1% (9) | Basic excels at generic event queries |
+| Complex (11) | **90.9%** (10) | 72.7% (8) | Both strong on multi-criteria queries |
+| Off-topic (7) | 28.6% (2) | 14.3% (1) | **Major weakness**: off-topic detection unreliable |
+| Temporal (12) | 16.7% (2) | **50.0%** (6) | Hybrid better for temporal queries (BM25 helps) |
+| Vague (6) | **100%** (6) | 66.7% (4) | Basic handles vague queries well |
 
 **Key Findings**:
 
-1. **Basic RAG is most robust**: 0% failures, though 33.3% partial
-   - Interpretation: Simpler method avoids over-complication
-   - Failure mode: Retrieves somewhat relevant events, but may miss specifics
+1. **Basic RAG is the strongest overall** (68.8% PASS) — stable vs. v1.0 baseline (66.7%)
+   - Excels at factual (85.7%) and complex (90.9%) queries
+   - FAISS vector search provides reliable semantic matching
 
-2. **Hybrid and Advanced have identical PASS rates**: 66.7%
-   - Suggests similar core retrieval quality
-   - Difference in failure modes: Hybrid/Advanced sometimes retrieve wrong events
+2. **Hybrid excels at temporal queries** (50% vs. 16.7% for Basic)
+   - BM25 keyword matching finds location-specific events that vector search misses
+   - Example: "événements à Chambéry ce weekend" — Hybrid finds Nuit des Musées events, Basic does not
 
-3. **Advanced RAG has fewest PARTIAL verdicts**: 11.1%
-   - Reranking improves precision: either correct or wrong, less ambiguity
+3. **Hybrid regressed on factual queries** (32.1% vs. 85.7% for Basic)
+   - The temporal filtering pipeline combined with BM25's broader retrieval results in more aggressive filtering
+   - BM25 retrieves diverse documents; after temporal filtering, relevant events may be lost
+   - This is a known trade-off of the v1.2.0 temporal pipeline
 
-4. **Off-topic detection needs improvement**: All methods struggle
-   - Example: "Comment faire une tarte aux pommes?" (How to make apple pie)
-   - System attempted to answer instead of refusing
+4. **Off-topic detection remains the weakest area** (28.6% / 14.3%)
+   - Requires a dedicated classifier (documented in KNOWN_ISSUES.md FI-9)
 
-**By Category** (aggregated across methods):
+5. **Temporal queries are inherently challenging** (16.7%-50%)
+   - System correctly interprets temporal expressions ("ce weekend" → May 18-19)
+   - But finding matching events depends on index coverage for that date range
 
-| Category | Avg PASS | Avg FAIL | Insight |
-|----------|----------|----------|---------|
-| Factual | 93% | 3% | Excellent performance on straightforward queries |
-| Complex | 56% | 12% | Multi-criteria queries more challenging |
-| Off-topic | 11% | 44% | **Major weakness**: off-topic detection unreliable |
-| Vague | 33% | 25% | System struggles to request clarification |
+**Recommendation**: Use **Basic** for general-purpose queries. Use **Hybrid** when temporal context matters (e.g., "ce weekend", "demain"). Investigate hybrid factual regression in v1.3.0.
 
 ### 4.5 Evaluation Pipeline
 
-**Implementation**: Notebook cells 24-31 in `notebooks/01_baseline_rag.ipynb`
+**Implementations**:
+- `scripts/run_evaluation.py`: Original chain-based evaluation (v1.0, uses local FAISS index)
+- `scripts/run_evaluation_api.py`: API-based evaluation (v1.2.0, calls production endpoint + LLM-as-Judge)
 
-**Process**:
-1. Load test questions from CSV
-2. For each RAG method (basic, hybrid, advanced):
-   - Execute all 18 questions
-   - Collect generated answers and sources
-3. Submit to LLM-as-Judge for evaluation
-4. Parse verdicts and reasoning
-5. Generate statistics (% PASS/PARTIAL/FAIL)
+**API-based process** (v1.2.0):
+1. Load test questions from CSV (64 questions)
+2. For each RAG method:
+   - Call production API (`/api/v1/ask`) with question and method
+   - Collect generated answer, sources, and metadata
+3. Submit each answer to LLM-as-Judge (mistral-large-latest, temperature=0)
+4. Parse verdicts (PASS/PARTIAL/FAIL) and reasoning
+5. Calculate statistics per method and per category
 6. Export results to `evaluation_results/` directory
 
 **Outputs**:
-- `evaluation_results_[timestamp].json`: Full results with reasoning
+- `evaluation_results_[timestamp].json`: Full results with reasoning and statistics
+- `evaluation_results_[timestamp].csv`: Spreadsheet format
 - `evaluation_summary_[timestamp].txt`: Statistics summary
-- `evaluation_details_[timestamp].csv`: Spreadsheet format
-
-**Scalability**: Setting `RUN_FULL_EVALUATION = True` processes all 64 questions (including 12 temporal)
 
 ---
 

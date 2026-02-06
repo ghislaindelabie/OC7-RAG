@@ -215,20 +215,30 @@ POST /api/v1/ask
 
 **Visual**: Pie chart or bar chart of evaluation results
 
-**Results table**:
+**Results table** (v1.2.0 — 64 questions, Basic + Hybrid):
 
 | Méthode | PASS | PARTIAL | FAIL |
 |---------|------|---------|------|
-| Basic | 66.7% | 33.3% | **0.0%** |
-| Hybrid | 66.7% | 16.7% | 16.7% |
-| Advanced | 66.7% | 11.1% | 16.7% |
+| **Basic** | **68.8%** (44) | 10.9% (7) | 20.3% (13) |
+| Hybrid | 43.8% (28) | 32.8% (21) | 23.4% (15) |
+
+**By category** (PASS rate):
+
+| Catégorie | Basic | Hybrid |
+|-----------|-------|--------|
+| Factual (28) | **85.7%** | 32.1% |
+| Complex (11) | **90.9%** | 72.7% |
+| Temporal (12) | 16.7% | **50.0%** |
+| Vague (6) | **100%** | 66.7% |
+| Off-topic (7) | 28.6% | 14.3% |
 
 **Key insights**:
-- Factual queries: 93% PASS (excellent)
-- Off-topic: 44% FAIL (known weakness)
-- Basic RAG is most robust (0% failure)
+- Basic RAG is the strongest overall (68.8% PASS), especially for factual queries (85.7%)
+- Hybrid excels at temporal queries (50% vs 16.7%) — BM25 keyword search finds location-specific events
+- Off-topic detection: main weakness for both methods (28.6% / 14.3%)
+- Advanced not tested on production (memory constraints on 3.7GB server)
 
-**Speaker notes**: Explain that PASS = factually correct (not necessarily exhaustive). Explain why a larger model (mistral-large) judges the smaller one.
+**Speaker notes**: Explain that PASS = factually correct (not necessarily exhaustive). Explain why a larger model (mistral-large) judges the smaller one. Note: Basic is recommended for general use, Hybrid for temporal queries. The hybrid regression on factual queries is due to temporal filtering being more aggressive with BM25's broader retrieval.
 
 ---
 

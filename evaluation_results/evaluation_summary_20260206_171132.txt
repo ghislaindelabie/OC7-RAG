@@ -1,0 +1,33 @@
+======================================================================
+RAG EVALUATION SUMMARY — v1.2.0 (Temporal Awareness)
+======================================================================
+Generated: 2026-02-06 17:11:32
+API URL: http://localhost:8000
+Methods: basic, hybrid
+Total Questions: 64
+======================================================================
+
+BASIC:
+  PASS:     68.8% (44/64)
+  PARTIAL:  10.9% (7/64)
+  FAIL:     20.3% (13/64)
+  Avg response time: 3479ms
+  By category:
+    complex       90.9% (10/11)
+    factual       85.7% (24/28)
+    off_topic     28.6% (2/7)
+    temporal      16.7% (2/12)
+    vague        100.0% (6/6)
+
+HYBRID:
+  PASS:     43.8% (28/64)
+  PARTIAL:  32.8% (21/64)
+  FAIL:     23.4% (15/64)
+  Avg response time: 2545ms
+  By category:
+    complex       72.7% (8/11)
+    factual       32.1% (9/28)
+    off_topic     14.3% (1/7)
+    temporal      50.0% (6/12)
+    vague         66.7% (4/6)
+
