@@ -5,16 +5,20 @@ Tests cover:
 - Index creation from documents
 - Index persistence (save/load)
 - Index search functionality
+- Metadata date parsing (ISO dates)
 - Edge cases and error handling
 
 Uses FakeEmbeddings to avoid API calls for fast unit tests.
 """
 
+import logging
 import pytest
 from pathlib import Path
 from langchain_core.documents import Document
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import FakeEmbeddings
+
+from src.api.rag_service import _build_metadata
 
 
 # ============== FIXTURES ==============
@@ -252,6 +256,177 @@ class TestEdgeCases:
 
         # Both should be indexed
         assert vectorstore.index.ntotal == 2
+
+
+# ============== METADATA DATE PARSING TESTS ==============
+
+
+class TestMetadataDateParsing:
+    """Test ISO date metadata extraction from event data."""
+
+    def test_valid_dates_parsed_to_iso(self):
+        """Events with valid dates produce ISO-formatted metadata fields."""
+        event = {
+            "uid": "evt-001",
+            "title_fr": "Concert de Jazz",
+            "location_city": "Annecy",
+            "location_department": "Haute-Savoie",
+            "daterange_fr": "Samedi 15 juin 2024, 20h00",
+            "firstdate_begin": "2024-06-15T20:00:00+02:00",
+            "lastdate_end": "2024-06-15T23:00:00+02:00",
+            "category": "concert",
+            "canonicalurl": "https://example.com/evt-001",
+        }
+        metadata = _build_metadata(event)
+
+        assert metadata["event_start_date"] == "2024-06-15"
+        assert metadata["event_end_date"] == "2024-06-15"
+        assert metadata["event_year"] == 2024
+        assert metadata["event_month"] == 6
+
+    def test_multiday_event_dates(self):
+        """Multi-day events have different start and end dates."""
+        event = {
+            "firstdate_begin": "2024-07-01T10:00:00+02:00",
+            "lastdate_end": "2024-07-05T22:00:00+02:00",
+        }
+        metadata = _build_metadata(event)
+
+        assert metadata["event_start_date"] == "2024-07-01"
+        assert metadata["event_end_date"] == "2024-07-05"
+        assert metadata["event_year"] == 2024
+        assert metadata["event_month"] == 7
+
+    def test_missing_firstdate_gives_none(self):
+        """Events without firstdate_begin get None for date fields."""
+        event = {
+            "uid": "evt-002",
+            "title_fr": "Mystery Event",
+            "lastdate_end": "2024-06-15T23:00:00+02:00",
+        }
+        metadata = _build_metadata(event)
+
+        assert metadata["event_start_date"] is None
+        assert metadata["event_end_date"] == "2024-06-15"
+        assert metadata["event_year"] is None
+        assert metadata["event_month"] is None
+
+    def test_missing_lastdate_gives_none(self):
+        """Events without lastdate_end get None for end_date only."""
+        event = {
+            "uid": "evt-003",
+            "firstdate_begin": "2024-03-10T14:00:00+02:00",
+        }
+        metadata = _build_metadata(event)
+
+        assert metadata["event_start_date"] == "2024-03-10"
+        assert metadata["event_end_date"] is None
+        assert metadata["event_year"] == 2024
+        assert metadata["event_month"] == 3
+
+    def test_missing_both_dates_gives_none(self):
+        """Events with no date fields get None for all date metadata."""
+        event = {"uid": "evt-004", "title_fr": "No Date Event"}
+        metadata = _build_metadata(event)
+
+        assert metadata["event_start_date"] is None
+        assert metadata["event_end_date"] is None
+        assert metadata["event_year"] is None
+        assert metadata["event_month"] is None
+
+    def test_malformed_date_gives_none_and_logs_warning(self, caplog):
+        """Malformed date strings produce None and log a warning."""
+        event = {
+            "uid": "evt-005",
+            "firstdate_begin": "not-a-date",
+            "lastdate_end": "also-not-valid",
+        }
+        with caplog.at_level(logging.WARNING):
+            metadata = _build_metadata(event)
+
+        assert metadata["event_start_date"] is None
+        assert metadata["event_end_date"] is None
+        assert metadata["event_year"] is None
+        assert metadata["event_month"] is None
+        assert "date" in caplog.text.lower()
+
+    def test_year_and_month_are_integers(self):
+        """event_year and event_month are integers, not strings."""
+        event = {
+            "firstdate_begin": "2024-12-25T10:00:00Z",
+            "lastdate_end": "2024-12-25T18:00:00Z",
+        }
+        metadata = _build_metadata(event)
+
+        assert isinstance(metadata["event_year"], int)
+        assert isinstance(metadata["event_month"], int)
+        assert metadata["event_year"] == 2024
+        assert metadata["event_month"] == 12
+
+    def test_utc_z_suffix_parsed(self):
+        """Dates with Z (UTC) suffix are parsed correctly."""
+        event = {
+            "firstdate_begin": "2024-01-15T08:00:00Z",
+            "lastdate_end": "2024-01-15T17:00:00Z",
+        }
+        metadata = _build_metadata(event)
+
+        assert metadata["event_start_date"] == "2024-01-15"
+        assert metadata["event_end_date"] == "2024-01-15"
+
+    def test_legacy_fields_preserved(self):
+        """Original metadata fields (uid, title, city, etc.) are still present."""
+        event = {
+            "uid": "evt-006",
+            "title_fr": "Test Event",
+            "location_city": "Grenoble",
+            "location_department": "Isère",
+            "daterange_fr": "Lundi 1 avril, 10h00",
+            "category": "exposition",
+            "canonicalurl": "https://example.com/evt-006",
+            "firstdate_begin": "2024-04-01T10:00:00+02:00",
+            "lastdate_end": "2024-04-01T18:00:00+02:00",
+        }
+        metadata = _build_metadata(event)
+
+        assert metadata["uid"] == "evt-006"
+        assert metadata["title"] == "Test Event"
+        assert metadata["city"] == "Grenoble"
+        assert metadata["department"] == "Isère"
+        assert metadata["daterange"] == "Lundi 1 avril, 10h00"
+        assert metadata["category"] == "exposition"
+        assert metadata["url"] == "https://example.com/evt-006"
+
+    def test_index_with_date_metadata(self, fake_embeddings):
+        """FAISS index works correctly with date metadata fields."""
+        docs = [
+            Document(
+                page_content="Concert de jazz à Annecy",
+                metadata={
+                    "event_start_date": "2024-06-15",
+                    "event_end_date": "2024-06-15",
+                    "event_year": 2024,
+                    "event_month": 6,
+                    "city": "Annecy",
+                },
+            ),
+            Document(
+                page_content="Festival à Grenoble",
+                metadata={
+                    "event_start_date": "2024-07-01",
+                    "event_end_date": "2024-07-05",
+                    "event_year": 2024,
+                    "event_month": 7,
+                    "city": "Grenoble",
+                },
+            ),
+        ]
+        vectorstore = FAISS.from_documents(docs, fake_embeddings)
+        assert vectorstore.index.ntotal == 2
+
+        results = vectorstore.similarity_search("concert", k=1)
+        assert "event_start_date" in results[0].metadata
+        assert "event_year" in results[0].metadata
 
 
 # ============== INTEGRATION TESTS ==============

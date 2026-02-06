@@ -103,8 +103,14 @@ def _build_document_text(event: dict) -> str:
 
 
 def _build_metadata(event: dict) -> dict:
-    """Extract metadata from event."""
-    return {
+    """Extract metadata from event, including ISO date fields.
+
+    Parses firstdate_begin and lastdate_end into structured date fields
+    for temporal filtering. Falls back to None for missing/malformed dates.
+    """
+    logger = logging.getLogger(__name__)
+
+    metadata = {
         "uid": event.get("uid", ""),
         "title": event.get("title_fr", ""),
         "city": event.get("location_city", ""),
@@ -112,7 +118,33 @@ def _build_metadata(event: dict) -> dict:
         "daterange": event.get("daterange_fr", ""),
         "category": event.get("category", ""),
         "url": event.get("canonicalurl", ""),
+        "event_start_date": None,
+        "event_end_date": None,
+        "event_year": None,
+        "event_month": None,
     }
+
+    firstdate = event.get("firstdate_begin")
+    if firstdate:
+        try:
+            dt = datetime.fromisoformat(firstdate.replace("Z", "+00:00"))
+            metadata["event_start_date"] = dt.strftime("%Y-%m-%d")
+            metadata["event_year"] = dt.year
+            metadata["event_month"] = dt.month
+        except (ValueError, AttributeError):
+            logger.warning("Failed to parse start date '%s' for event '%s'",
+                           firstdate, event.get("uid", "unknown"))
+
+    lastdate = event.get("lastdate_end")
+    if lastdate:
+        try:
+            dt = datetime.fromisoformat(lastdate.replace("Z", "+00:00"))
+            metadata["event_end_date"] = dt.strftime("%Y-%m-%d")
+        except (ValueError, AttributeError):
+            logger.warning("Failed to parse end date '%s' for event '%s'",
+                           lastdate, event.get("uid", "unknown"))
+
+    return metadata
 
 
 class RAGService:
