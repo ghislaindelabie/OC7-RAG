@@ -452,7 +452,9 @@ def _filter_temporal_window(
 
 ---
 
-### Feature 5: Temporal Proximity Reranking
+### Feature 5: Temporal Proximity Reranking ✅
+
+**Status**: Complete — 9 new tests (145 total). Exponential decay reranking integrated for all methods.
 
 **Goal**: After retrieval and date filtering, boost events closer to the target date.
 
