@@ -176,7 +176,10 @@ Each feature follows the workflow:
 
 ---
 
-### Feature 2: Reference Date in API + Prompt Injection
+### Feature 2: Reference Date in API + Prompt Injection ✅
+
+**Status**: Complete — 16 new tests (109 total). Schema, prompt, constant, wiring done.
+Note: Prompt uses DEFAULT_REFERENCE_DATE at chain init. Per-request prompt injection in Feature 3.
 
 **Goal**: API accepts `reference_date`, prompt tells the LLM what "today" is.
 
