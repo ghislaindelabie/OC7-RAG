@@ -354,7 +354,9 @@ def _filter_past_events(
 
 ---
 
-### Feature 4: Enhanced Query Analysis for Advanced RAG
+### Feature 4: Enhanced Query Analysis for Advanced RAG ✅
+
+**Status**: Complete — 19 new tests (136 total). Query analysis prompt, response parser, temporal window filter, and pipeline integration done.
 
 **Goal**: Extend the advanced method's existing Query Analysis LLM call to also extract temporal intent, enabling smarter post-retrieval filtering.
 
