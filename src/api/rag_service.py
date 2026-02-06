@@ -21,12 +21,10 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 from langchain_core.documents import Document
-from langchain_core.prompts import PromptTemplate
 from langchain_mistralai import MistralAIEmbeddings, ChatMistralAI
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
 from langchain_community.document_compressors import FlashrankRerank
-from langchain_classic.chains import RetrievalQA
 from langchain_classic.retrievers import EnsembleRetriever, ContextualCompressionRetriever
 
 # Load environment variables
@@ -179,6 +177,38 @@ def _build_metadata(event: dict) -> dict:
     return metadata
 
 
+def _filter_past_events(
+    documents: List[Document], reference_date: str
+) -> List[Document]:
+    """Remove events that ended before the reference date.
+
+    Design choice: This system recommends upcoming/current events only.
+    Past events are excluded to provide actionable recommendations.
+    Events with missing or unparseable dates are kept (benefit of the doubt).
+
+    Args:
+        documents: List of retrieved documents
+        reference_date: ISO YYYY-MM-DD date string
+
+    Returns:
+        Filtered list with only current/future events
+    """
+    ref = datetime.strptime(reference_date, "%Y-%m-%d").date()
+    filtered = []
+    for doc in documents:
+        end_date_str = doc.metadata.get("event_end_date")
+        if end_date_str is None:
+            filtered.append(doc)
+            continue
+        try:
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+            if end_date >= ref:
+                filtered.append(doc)
+        except ValueError:
+            filtered.append(doc)
+    return filtered
+
+
 class RAGService:
     """
     Singleton service for RAG operations.
@@ -223,7 +253,9 @@ class RAGService:
         self.embeddings = None
         self.llm = None
         self.documents = []  # Needed for BM25
-        self.chains = {}  # Cache for RAG chains
+        self._bm25_retriever = None
+        self._flashrank_compressor = None
+        self._available_methods = []
         self.index_metadata = {}
 
         # Configuration
@@ -323,9 +355,9 @@ class RAGService:
                 logger.warning(f"FAISS index not found at {self.index_path}")
                 self._index_loaded = False
 
-            # Setup RAG chains if index is loaded
+            # Setup retrievers if index is loaded
             if self._index_loaded and self.documents:
-                self._setup_chains()
+                self._setup_retrievers()
 
         except Exception as e:
             logger.error(f"Error loading RAG components: {e}")
@@ -333,73 +365,65 @@ class RAGService:
             self._index_loaded = False
             raise
 
-    def _setup_chains(self):
-        """Set up all three RAG chains: Basic, Hybrid, Advanced."""
+    def _setup_retrievers(self):
+        """Set up retriever components for all three RAG methods.
+
+        Unlike the previous RetrievalQA chain approach, retrievers are stored
+        as components and assembled per-request in _retrieve(). This allows
+        dynamic top_k and per-request reference_date injection.
+        """
         if not self.vectorstore or not self.llm:
             return
 
-        prompt = PromptTemplate(
-            template=RAG_PROMPT_TEMPLATE,
-            input_variables=["context", "question"],
-            partial_variables={
-                "reference_date_formatted": _format_date_french(DEFAULT_REFERENCE_DATE)
-            },
-        )
+        # BM25 retriever for hybrid and advanced methods
+        logger.info("Setting up BM25 retriever...")
+        self._bm25_retriever = BM25Retriever.from_documents(self.documents)
 
-        # Basic RAG (FAISS only)
-        logger.info("Setting up Basic RAG chain...")
-        basic_retriever = self.vectorstore.as_retriever(search_kwargs={"k": 5})
-        self.chains["basic"] = RetrievalQA.from_chain_type(
-            llm=self.llm,
-            chain_type="stuff",
-            retriever=basic_retriever,
-            return_source_documents=True,
-            chain_type_kwargs={"prompt": prompt},
-        )
-
-        # Hybrid RAG (FAISS + BM25)
-        logger.info("Setting up Hybrid RAG chain...")
-        bm25_retriever = BM25Retriever.from_documents(self.documents)
-        bm25_retriever.k = 5
-        faiss_retriever = self.vectorstore.as_retriever(search_kwargs={"k": 5})
-        ensemble_retriever = EnsembleRetriever(
-            retrievers=[faiss_retriever, bm25_retriever], weights=[0.5, 0.5]
-        )
-        self.chains["hybrid"] = RetrievalQA.from_chain_type(
-            llm=self.llm,
-            chain_type="stuff",
-            retriever=ensemble_retriever,
-            return_source_documents=True,
-            chain_type_kwargs={"prompt": prompt},
-        )
-
-        # Advanced RAG (with reranking)
-        # Uses FlashrankRerank for re-ordering retrieved documents by relevance.
-        # If FlashRank is unavailable (missing dependency, incompatible environment),
-        # we fall back to hybrid method to ensure the API remains functional.
-        logger.info("Setting up Advanced RAG chain...")
+        # FlashRank reranker for advanced method
+        logger.info("Setting up FlashRank reranker...")
         try:
-            compressor = FlashrankRerank(top_n=5)
-            compression_retriever = ContextualCompressionRetriever(
-                base_compressor=compressor, base_retriever=ensemble_retriever
-            )
-            self.chains["advanced"] = RetrievalQA.from_chain_type(
-                llm=self.llm,
-                chain_type="stuff",
-                retriever=compression_retriever,
-                return_source_documents=True,
-                chain_type_kwargs={"prompt": prompt},
-            )
+            self._flashrank_compressor = FlashrankRerank(top_n=200)
+            logger.info("  FlashRank reranker ready")
         except Exception as e:
-            # Fallback to hybrid for advanced - API remains functional but without reranking
             logger.warning(
                 f"FlashrankRerank unavailable ({e}), 'advanced' method will use hybrid retrieval. "
                 "Install flashrank package for reranking support."
             )
-            self.chains["advanced"] = self.chains["hybrid"]
+            self._flashrank_compressor = None
             self._advanced_uses_fallback = True
 
-        logger.info("All RAG chains ready")
+        self._available_methods = ["basic", "hybrid", "advanced"]
+        logger.info("All retrievers ready")
+
+    def _retrieve(self, question: str, method: str, fetch_k: int) -> List[Document]:
+        """Retrieve documents using the specified method.
+
+        Args:
+            question: User query
+            method: "basic", "hybrid", or "advanced"
+            fetch_k: Number of candidates to retrieve (before filtering)
+
+        Returns:
+            List of retrieved documents
+        """
+        if method == "basic":
+            return self.vectorstore.similarity_search(question, k=fetch_k)
+
+        # Hybrid and Advanced both start with FAISS + BM25 ensemble
+        faiss_retriever = self.vectorstore.as_retriever(search_kwargs={"k": fetch_k})
+        self._bm25_retriever.k = fetch_k
+        ensemble = EnsembleRetriever(
+            retrievers=[faiss_retriever, self._bm25_retriever], weights=[0.5, 0.5]
+        )
+
+        if method == "advanced" and self._flashrank_compressor is not None:
+            compression_retriever = ContextualCompressionRetriever(
+                base_compressor=self._flashrank_compressor,
+                base_retriever=ensemble,
+            )
+            return compression_retriever.invoke(question)
+
+        return ensemble.invoke(question)
 
     def is_ready(self) -> bool:
         """Check if service is ready to handle requests."""
@@ -563,12 +587,19 @@ class RAGService:
         reference_date: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Query the RAG system.
+        Query the RAG system using a manual retrieve-then-generate pipeline.
+
+        Pipeline steps:
+        1. Retrieve candidates (fetch_k = top_k * 10 for filtering headroom)
+        2. Filter past events (event_end_date < reference_date)
+        3. Slice to top_k
+        4. Build prompt with reference_date + context + question
+        5. Generate answer via LLM
 
         Args:
             question: User question
             method: RAG method ("basic", "hybrid", or "advanced")
-            top_k: Number of documents to retrieve
+            top_k: Number of documents the LLM sees and returns as sources
             reference_date: ISO date (YYYY-MM-DD) used as "today" for temporal queries.
                            Defaults to DEFAULT_REFERENCE_DATE.
 
@@ -578,36 +609,51 @@ class RAGService:
         if not self.is_ready():
             raise RuntimeError("RAG service not ready - index not loaded")
 
-        if method not in self.chains:
-            raise ValueError(f"Unknown RAG method: {method}. Available: {list(self.chains.keys())}")
+        if method not in self._available_methods:
+            raise ValueError(
+                f"Unknown RAG method: {method}. Available: {self._available_methods}"
+            )
 
         ref_date = reference_date or DEFAULT_REFERENCE_DATE
         start_time = time.time()
 
         try:
-            # Get the appropriate chain
-            chain = self.chains[method]
+            # 1. Retrieve candidates with generous fetch_k
+            fetch_k = top_k * 10
+            docs = self._retrieve(question, method, fetch_k=fetch_k)
 
-            # Run the query
-            result = chain.invoke({"query": question})
+            # 2. Filter past events
+            docs = _filter_past_events(docs, ref_date)
 
-            # Extract answer and source documents
-            answer = result.get("result", "")
-            source_docs = result.get("source_documents", [])
+            # 3. Slice to top_k
+            docs = docs[:top_k]
+
+            # 4. Build prompt with per-request reference_date
+            context = "\n\n".join(doc.page_content for doc in docs)
+            prompt_text = RAG_PROMPT_TEMPLATE.format(
+                reference_date_formatted=_format_date_french(ref_date),
+                context=context if context else "Aucun événement trouvé.",
+                question=question,
+            )
+
+            # 5. Generate answer
+            response = self.llm.invoke(prompt_text)
+            answer = response.content if hasattr(response, "content") else str(response)
 
             # Format sources for response
             sources = []
-            for doc in source_docs[:top_k]:
+            for doc in docs:
                 source = {
                     "title": doc.metadata.get("title", "Unknown"),
                     "location": doc.metadata.get("city", None),
-                    "date_start": doc.metadata.get("daterange", None),
+                    "date_start": doc.metadata.get("event_start_date")
+                    or doc.metadata.get("daterange", None),
                     "description_snippet": (
                         doc.page_content[:200] + "..."
                         if len(doc.page_content) > 200
                         else doc.page_content
                     ),
-                    "relevance_score": None,  # FAISS doesn't provide score in chain
+                    "relevance_score": None,
                 }
                 sources.append(source)
 
@@ -729,10 +775,10 @@ class RAGService:
             self._index_loaded = True
             self.index_metadata["last_updated"] = datetime.utcnow().isoformat() + "Z"
 
-            # Rebuild RAG chains with new index
+            # Rebuild retrievers with new index
             if self.llm:
-                logger.info("Rebuilding RAG chains...")
-                self._setup_chains()
+                logger.info("Rebuilding retrievers...")
+                self._setup_retrievers()
 
             build_time = time.time() - start_time
             logger.info(f"Index rebuild complete in {build_time:.2f}s")

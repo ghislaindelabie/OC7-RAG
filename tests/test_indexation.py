@@ -20,6 +20,7 @@ from langchain_community.embeddings import FakeEmbeddings
 
 from src.api.rag_service import (
     _build_metadata,
+    _filter_past_events,
     _format_date_french,
     DEFAULT_REFERENCE_DATE,
     RAG_PROMPT_TEMPLATE,
@@ -485,6 +486,85 @@ class TestTemporalConstants:
         """_format_date_french returns input string for invalid dates."""
         result = _format_date_french("not-a-date")
         assert result == "not-a-date"
+
+
+# ============== PAST EVENT FILTER TESTS ==============
+
+
+class TestFilterPastEvents:
+    """Test _filter_past_events() function (Feature 3)."""
+
+    def _make_doc(self, content, end_date=None, start_date=None):
+        """Helper to create a Document with date metadata."""
+        metadata = {}
+        if end_date is not None:
+            metadata["event_end_date"] = end_date
+        if start_date is not None:
+            metadata["event_start_date"] = start_date
+        return Document(page_content=content, metadata=metadata)
+
+    def test_future_events_kept(self):
+        """Events ending after reference_date are kept."""
+        docs = [
+            self._make_doc("Future event", end_date="2024-03-15"),
+            self._make_doc("Another future", end_date="2024-06-01"),
+        ]
+        result = _filter_past_events(docs, "2024-02-06")
+        assert len(result) == 2
+
+    def test_past_events_removed(self):
+        """Events ending before reference_date are removed."""
+        docs = [
+            self._make_doc("Past event", end_date="2024-01-15"),
+            self._make_doc("Very past", end_date="2023-06-01"),
+        ]
+        result = _filter_past_events(docs, "2024-02-06")
+        assert len(result) == 0
+
+    def test_same_day_events_kept(self):
+        """Events ending on reference_date are kept (end_date >= ref)."""
+        docs = [self._make_doc("Today event", end_date="2024-02-06")]
+        result = _filter_past_events(docs, "2024-02-06")
+        assert len(result) == 1
+
+    def test_mixed_past_and_future(self):
+        """Mix of past and future events: only future kept."""
+        docs = [
+            self._make_doc("Past", end_date="2024-01-01"),
+            self._make_doc("Future", end_date="2024-03-01"),
+            self._make_doc("Past too", end_date="2023-12-31"),
+            self._make_doc("Also future", end_date="2024-02-10"),
+        ]
+        result = _filter_past_events(docs, "2024-02-06")
+        assert len(result) == 2
+        assert result[0].page_content == "Future"
+        assert result[1].page_content == "Also future"
+
+    def test_none_end_date_kept(self):
+        """Events with no end_date are kept (benefit of the doubt)."""
+        docs = [self._make_doc("No date event")]
+        result = _filter_past_events(docs, "2024-02-06")
+        assert len(result) == 1
+
+    def test_malformed_end_date_kept(self):
+        """Events with malformed end_date are kept."""
+        docs = [self._make_doc("Bad date event", end_date="not-a-date")]
+        result = _filter_past_events(docs, "2024-02-06")
+        assert len(result) == 1
+
+    def test_empty_list_returns_empty(self):
+        """Empty document list returns empty list."""
+        result = _filter_past_events([], "2024-02-06")
+        assert result == []
+
+    def test_all_filtered_returns_empty(self):
+        """If all events are past, returns empty list (graceful)."""
+        docs = [
+            self._make_doc("Old 1", end_date="2023-01-01"),
+            self._make_doc("Old 2", end_date="2023-06-01"),
+        ]
+        result = _filter_past_events(docs, "2024-02-06")
+        assert len(result) == 0
 
 
 # ============== INTEGRATION TESTS ==============
