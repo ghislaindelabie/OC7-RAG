@@ -243,7 +243,9 @@ DEFAULT_REFERENCE_DATE = os.getenv("DEFAULT_REFERENCE_DATE", "2024-02-06")
 
 ---
 
-### Feature 3: Pipeline Rework + Past Event Filtering
+### Feature 3: Pipeline Rework + Past Event Filtering ✅
+
+**Status**: Complete — 8 new tests (117 total). RetrievalQA chains replaced with manual retrieve-then-generate pipeline.
 
 **Goal**: Fix the `top_k` disconnect, filter past events, and prepare the pipeline for temporal features.
 
