@@ -1,15 +1,17 @@
 # Known Issues - OC7 RAG System
 
-**Last updated**: 2026-02-04
-**Version**: v0.4.0
+**Last updated**: 2026-02-06
+**Version**: v1.2.0
 
 ---
 
-## 1. Auto-rebuild fails when index directory exists but is empty
+## 1. Auto-rebuild fails when index directory exists but is empty — FIXED in v1.2.0 ✅
 
 **Severity**: Medium
-**Status**: Workaround available, fix planned for v0.5.0
+**Status**: **FIXED** in v1.2.0
 **Discovered**: 2026-02-04 during CI/CD deployment validation
+**Confirmed**: 2026-02-06 during v1.2.0 test deployment on port 8001
+**Fixed**: 2026-02-06 — check for `index.faiss` file instead of directory
 
 ### Description
 
@@ -19,7 +21,7 @@ The auto-rebuild feature (introduced in PR #19) fails to trigger when:
 
 ### Root Cause
 
-In `src/api/rag_service.py` lines 237-267:
+In `src/api/rag_service.py` (lines ~509-537 in v1.2.0):
 
 ```python
 # Load FAISS index
@@ -65,37 +67,68 @@ docker compose -f docker-compose.prod.yml exec api rm -rf /app/data/index/faiss_
 docker compose -f docker-compose.prod.yml restart api
 ```
 
-### Proposed Fix (v0.5.0)
+### Fix Applied (v1.2.0)
 
-**Option 1**: Check for actual index files before loading
+**Option 1 was implemented**: Check for actual index file before loading.
+
 ```python
-# Load FAISS index
+# Load FAISS index (check for actual index file, not just directory)
 index_file = self.index_path / "index.faiss"
-if index_file.exists():  # Check for actual file, not just directory
-    logger.info(f"Loading FAISS index from {self.index_path}")
-    self.vectorstore = FAISS.load_local(...)
-    self._index_loaded = True
+if index_file.exists():
+    # ... load index ...
 else:
     logger.warning(f"FAISS index not found at {index_file}")
     self._index_loaded = False
 ```
 
-**Option 2**: Don't reset `_llm_available` on index load failure
-```python
-except Exception as e:
-    logger.error(f"Error loading RAG components: {e}")
-    # Don't reset _llm_available if it was already set successfully
-    if not self._llm_available:
-        logger.warning("LLM initialization failed")
-    self._index_loaded = False
-    # Don't raise - allow service to start in degraded mode
-```
-
-**Recommended**: Option 1 (more explicit, prevents unnecessary exception)
+This prevents the exception cascade and allows the auto-rebuild path to trigger correctly.
 
 ---
 
-## 2. Download timeout issue - FIXED in v0.4.1 ✅
+## 2. Web UI does not display the demo reference date — FIXED in v1.2.0 ✅
+
+**Severity**: Medium (UX / clarity)
+**Status**: **FIXED** in v1.2.0
+**Discovered**: 2026-02-06 during v1.2.0 manual testing
+**Fixed**: 2026-02-06 — added yellow info banner below header
+
+### Description
+
+The RAG system uses a fixed **reference date** (`2024-02-06`) for all temporal queries ("ce weekend", "demain", "événements en cours", etc.). This date is the default `reference_date` parameter in the API and reflects the period when the dataset has the most events.
+
+However, the web chat UI does **not** display this information anywhere. Users testing the app see "today's date" in the browser but the system interprets temporal queries relative to 2024-02-06. This creates confusion when results don't match the user's expectation of "today".
+
+### Impact
+
+- Users think the system is broken when "ce weekend" returns events from February 2024
+- Demo reviewers may not understand the temporal context
+- No visual indication that this is a demo with a fixed reference date
+
+### Proposed Fix (v1.3.0)
+
+Add a visible banner or notice on the web chat interface:
+
+**Option 1**: Info banner at the top of the chat area
+```html
+<div class="demo-notice">
+  Demo mode — "Aujourd'hui" = 6 février 2024
+  (les requêtes temporelles sont relatives à cette date de référence)
+</div>
+```
+
+**Option 2**: Display in the system's first message / welcome text
+
+**Option 3**: Show the reference date alongside each response in the metadata
+
+**Recommended**: Option 1 — most visible, immediately sets expectations.
+
+Additionally, consider:
+- Displaying the reference date in the `/health` or `/api/v1/rag/info` response
+- Adding a tooltip or "?" icon explaining why a fixed date is used
+
+---
+
+## 3. Download timeout issue - FIXED in v0.4.1 ✅
 
 **Severity**: **CRITICAL** (blocking production deployment)
 **Status**: **FIXED** in v0.4.1
@@ -151,7 +184,7 @@ No migration needed - change is backward compatible. Existing index data remains
 
 ---
 
-## 3. Security: API key exposure in documentation
+## 4. Security: API key exposure in documentation
 
 **Severity**: **CRITICAL** 🔴
 **Status**: Immediate action required
@@ -193,7 +226,7 @@ During troubleshooting, the Mistral API key was exposed in plain text when check
 
 ---
 
-## 4. Docker Compose version warning
+## 5. Docker Compose version warning
 
 **Severity**: Informational
 **Status**: Won't fix (cosmetic)

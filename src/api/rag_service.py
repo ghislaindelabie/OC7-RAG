@@ -505,8 +505,9 @@ class RAGService:
             # Load documents (needed for BM25)
             self.documents = self._load_events_as_documents()
 
-            # Load FAISS index
-            if self.index_path.exists():
+            # Load FAISS index (check for actual index file, not just directory)
+            index_file = self.index_path / "index.faiss"
+            if index_file.exists():
                 logger.info(f"Loading FAISS index from {self.index_path}")
                 # NOTE: allow_dangerous_deserialization=True is required by LangChain's FAISS
                 # wrapper because it uses pickle for the docstore. This is safe in our context:
@@ -523,7 +524,7 @@ class RAGService:
                 )
                 logger.info(f"  Index loaded with {self.vectorstore.index.ntotal} vectors")
             else:
-                logger.warning(f"FAISS index not found at {self.index_path}")
+                logger.warning(f"FAISS index not found at {index_file}")
                 self._index_loaded = False
 
             # Setup retrievers if index is loaded
