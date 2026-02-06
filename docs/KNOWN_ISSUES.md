@@ -1,15 +1,17 @@
 # Known Issues - OC7 RAG System
 
-**Last updated**: 2026-02-04
-**Version**: v0.4.0
+**Last updated**: 2026-02-06
+**Version**: v1.2.0
 
 ---
 
-## 1. Auto-rebuild fails when index directory exists but is empty
+## 1. Auto-rebuild fails when index directory exists but is empty — FIXED in v1.2.0 ✅
 
 **Severity**: Medium
-**Status**: Workaround available, fix planned for v0.5.0
+**Status**: **FIXED** in v1.2.0
 **Discovered**: 2026-02-04 during CI/CD deployment validation
+**Confirmed**: 2026-02-06 during v1.2.0 test deployment on port 8001
+**Fixed**: 2026-02-06 — check for `index.faiss` file instead of directory
 
 ### Description
 
@@ -19,7 +21,7 @@ The auto-rebuild feature (introduced in PR #19) fails to trigger when:
 
 ### Root Cause
 
-In `src/api/rag_service.py` lines 237-267:
+In `src/api/rag_service.py` (lines ~509-537 in v1.2.0):
 
 ```python
 # Load FAISS index
@@ -65,37 +67,59 @@ docker compose -f docker-compose.prod.yml exec api rm -rf /app/data/index/faiss_
 docker compose -f docker-compose.prod.yml restart api
 ```
 
-### Proposed Fix (v0.5.0)
+### Fix Applied (v1.2.0)
 
-**Option 1**: Check for actual index files before loading
+**Option 1 was implemented**: Check for actual index file before loading.
+
 ```python
-# Load FAISS index
+# Load FAISS index (check for actual index file, not just directory)
 index_file = self.index_path / "index.faiss"
-if index_file.exists():  # Check for actual file, not just directory
-    logger.info(f"Loading FAISS index from {self.index_path}")
-    self.vectorstore = FAISS.load_local(...)
-    self._index_loaded = True
+if index_file.exists():
+    # ... load index ...
 else:
     logger.warning(f"FAISS index not found at {index_file}")
     self._index_loaded = False
 ```
 
-**Option 2**: Don't reset `_llm_available` on index load failure
-```python
-except Exception as e:
-    logger.error(f"Error loading RAG components: {e}")
-    # Don't reset _llm_available if it was already set successfully
-    if not self._llm_available:
-        logger.warning("LLM initialization failed")
-    self._index_loaded = False
-    # Don't raise - allow service to start in degraded mode
-```
-
-**Recommended**: Option 1 (more explicit, prevents unnecessary exception)
+This prevents the exception cascade and allows the auto-rebuild path to trigger correctly.
 
 ---
 
-## 2. Download timeout issue - FIXED in v0.4.1 ✅
+## 2. Web UI does not display the demo reference date — FIXED in v1.2.0 ✅
+
+**Severity**: Medium (UX / clarity)
+**Status**: **FIXED** in v1.2.0
+**Discovered**: 2026-02-06 during v1.2.0 manual testing
+**Fixed**: 2026-02-06 — added yellow info banner below header
+
+### Description
+
+The RAG system uses a fixed **reference date** (`2024-05-16`) for all temporal queries ("ce weekend", "demain", "événements en cours", etc.). This date is the default `reference_date` parameter in the API and reflects the period when the dataset has the most events.
+
+However, the web chat UI does **not** display this information anywhere. Users testing the app see "today's date" in the browser but the system interprets temporal queries relative to 2024-05-16. This creates confusion when results don't match the user's expectation of "today".
+
+### Impact
+
+- Users think the system is broken when "ce weekend" returns events from February 2024
+- Demo reviewers may not understand the temporal context
+- No visual indication that this is a demo with a fixed reference date
+
+### Fix Applied (v1.2.0)
+
+A yellow info banner was added below the header in `src/api/static/index.html`:
+
+```html
+<div class="demo-notice">
+  Mode demo — « Aujourd'hui » = 16 mai 2024.
+  Les requêtes temporelles (ce weekend, demain...) sont relatives à cette date de référence.
+</div>
+```
+
+The reference date is also returned in the API response metadata for each query.
+
+---
+
+## 3. Download timeout issue - FIXED in v0.4.1 ✅
 
 **Severity**: **CRITICAL** (blocking production deployment)
 **Status**: **FIXED** in v0.4.1
@@ -151,7 +175,7 @@ No migration needed - change is backward compatible. Existing index data remains
 
 ---
 
-## 3. Security: API key exposure in documentation
+## 4. Security: API key exposure in documentation
 
 **Severity**: **CRITICAL** 🔴
 **Status**: Immediate action required
@@ -193,7 +217,7 @@ During troubleshooting, the Mistral API key was exposed in plain text when check
 
 ---
 
-## 4. Docker Compose version warning
+## 5. Docker Compose version warning
 
 **Severity**: Informational
 **Status**: Won't fix (cosmetic)
@@ -212,6 +236,107 @@ Docker Compose v2 no longer requires `version` field in `docker-compose.yml`. Th
 ### Resolution
 
 No action needed. Can remove `version: '3.8'` line in future update for cleaner output.
+
+---
+
+## Future Improvements (from PR #25 Code Review)
+
+The following improvements were identified during the v1.2.0 code review. They are non-blocking for release but recommended for follow-up work.
+
+### FI-1. Add `reference_date` input validation in `query()` method
+
+**Priority**: Medium
+**File**: `src/api/rag_service.py` (query method)
+
+The `reference_date` parameter is not validated before use. Invalid formats (e.g., `"invalid-date"`) or extreme dates (e.g., `"9999-12-31"`) will cause `ValueError` deep in the pipeline. Pydantic already validates at the API level (`schemas.py`), but direct programmatic calls to `query()` are unprotected.
+
+**Proposed fix**: Add early validation with clear error message:
+```python
+ref_date = reference_date or DEFAULT_REFERENCE_DATE
+try:
+    datetime.strptime(ref_date, "%Y-%m-%d")
+except ValueError as e:
+    raise ValueError(f"Invalid reference_date format: {ref_date}. Expected YYYY-MM-DD") from e
+```
+
+### FI-2. Extract magic numbers to named constants
+
+**Priority**: Low
+**Files**: `src/api/rag_service.py`
+
+Hard-coded values lack rationale:
+- `half_life_days=14` (temporal reranking decay)
+- `fetch_k = top_k * 10` (candidate retrieval multiplier)
+
+**Proposed fix**: Define module-level constants with documentation:
+```python
+TEMPORAL_RERANK_HALF_LIFE_DAYS = 14  # Events 14 days away score 50%
+FETCH_K_MULTIPLIER = 10  # Retrieve 10x candidates for filtering headroom
+```
+
+### FI-3. Document timezone handling decision
+
+**Priority**: Low
+**File**: `src/api/rag_service.py` (`_build_metadata` function)
+
+Timezone information is stripped when parsing event dates. This is acceptable (all target departments are in CET/CEST, events are France-local) but the design decision should be documented in the function docstring.
+
+### FI-4. Add index integrity verification
+
+**Priority**: Medium
+**File**: `src/api/rag_service.py`
+
+FAISS index uses `allow_dangerous_deserialization=True` (pickle). While documented, adding checksum verification would improve security:
+- Generate SHA256 manifest (`index.manifest`) during rebuild
+- Verify checksums before loading
+- Reject tampered index files
+
+### FI-5. Improve stable sort comment clarity
+
+**Priority**: Low
+**File**: `src/api/rag_service.py` (`_temporal_rerank` function)
+
+Current comment says "stable sort" but implementation uses original index as tiebreaker. Clarify:
+```python
+# Sort by score (descending), using original index (ascending) as tiebreaker
+# This preserves the retrieval order for events with identical temporal scores
+```
+
+### FI-6. Add edge case tests for temporal features
+
+**Priority**: Low
+**Files**: `tests/test_indexation.py`
+
+Missing test coverage for:
+- Query with `reference_date` in far future (e.g., `"2099-12-31"`)
+- Query with `reference_date` before all events (e.g., `"2020-01-01"`)
+- Temporal window spanning multiple years
+- Events with `event_start_date` but no `event_end_date`
+- Query analysis JSON parsing edge cases (malformed JSON, missing fields)
+
+### FI-7. Consider single version variable for the project
+
+**Priority**: Medium
+**Files**: `src/api/main.py`, `src/api/rag_service.py`, `VERSION_HISTORY.md`
+
+Currently, the version string appears in multiple places (`main.py:67`, `rag_service.py:get_info()`). A single source of truth would prevent inconsistencies. Options:
+1. `src/__version__.py` file imported by all modules
+2. `pyproject.toml` version field read at runtime
+3. Environment variable set during build
+
+### FI-8. Expose reference date picker in web UI
+
+**Priority**: Low
+**File**: `src/api/static/index.html`
+
+The demo banner currently shows a fixed date. A date picker or dropdown would let users explore different temporal contexts without API calls.
+
+### FI-9. Improve off-topic detection
+
+**Priority**: High
+**Context**: Evaluation shows 44% failure rate on off-topic queries
+
+The current approach relies on the LLM prompt to detect off-topic questions. A dedicated binary classifier fine-tuned on event-related vs. off-topic queries would significantly improve robustness.
 
 ---
 

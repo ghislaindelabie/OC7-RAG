@@ -51,7 +51,15 @@ id,question,expected_answer,category,difficulty
 50,"Savoie","[VAGUE] Nom de lieu seul - préciser ce qui est recherché",vague,easy
 51,"activités enfants","[VAGUE] Question partielle - préciser lieu et période souhaitée",vague,easy
 52,"emploi","[VAGUE] Terme trop large - préciser secteur, lieu, type de contrat recherché",vague,easy
-53,"Quels concerts ont lieu ce soir à Grenoble?","Concerts programmés aujourd'hui à Grenoble (dépend de la date actuelle)",temporal,medium
-54,"Y a-t-il des événements demain en Savoie?","Événements du lendemain en Savoie (dépend de la date actuelle)",temporal,medium
-55,"Que faire pendant les vacances de février en Haute-Savoie?","Activités vacances d'hiver: ski, animations neige, événements montagne",temporal,medium
-56,"Quels événements du Patrimoine 2024 sont encore accessibles?","Événements patrimoine récents ou à venir selon date actuelle",temporal,hard
+53,"Quels événements culturels ont lieu ce weekend à Chambéry?","Nuit des Musées au Musée des Beaux-Arts de Chambéry le samedi 18 mai: visites flash, découverte de l'artothèque (500+ œuvres), exposition Rêveries de promeneurs solitaires.",temporal,medium
+54,"Y a-t-il un concert ou spectacle ce weekend dans la région?","Nuit des Musées le samedi 18 mai: nuit théâtrale au Musée-Château d'Annecy, événements musicaux et culturels dans divers lieux de la région.",temporal,medium
+55,"Que faire demain à Chambéry?","Vendredi 17 mai: événements culturels à Chambéry. Préparatifs de la Nuit des Musées (samedi 18 mai) au Musée des Beaux-Arts.",temporal,medium
+56,"Quelles expositions peut-on visiter en ce moment à Grenoble?","Expositions dans les musées de Grenoble et de l'Isère, événements culturels en cours mi-mai 2024.",temporal,medium
+57,"Y a-t-il des festivals cet été en Haute-Savoie?","Bluegrass Festival In La Roche (La Roche-sur-Foron, 1-4 août 2024), Samoens American Festival (Samoëns, 27-30 juin 2024), Festival des Musiques du Chablais (Saint-Paul en Chablais, 16 juin 2024).",temporal,medium
+58,"Quels ateliers créatifs sont prévus en juin à Chambéry?","Ateliers créatifs aux Octopodes et dans les centres culturels de Chambéry: techniques artistiques variées (encre, aquarelle, feutre, cyanotype).",temporal,medium
+59,"Qu'est-ce qui s'est passé la semaine dernière en Savoie?","Le système recommande les événements à venir. Pour la semaine du 6 au 12 mai, des événements culturels et emploi ont eu lieu mais sont désormais passés.",temporal,hard
+60,"Ce soir ou demain, y a-t-il des événements culturels?","Ce soir (16 mai): événements culturels en cours dans la région. Demain (17 mai): activités culturelles, veille de la Nuit des Musées.",temporal,hard
+61,"Quels événements ont lieu à Annecy cette semaine?","Semaine du 13-19 mai à Annecy: Nuit des Musées au Musée-Château le samedi 18 mai (nuit théâtrale, spectacles). Événements culturels et expositions.",temporal,medium
+62,"Y a-t-il des randonnées prévues prochainement?","Randonnées et activités plein air dans la région alpine, activités récurrentes printemps-été 2024.",temporal,easy
+63,"Quels événements culturels ont lieu en Isère en mai?","Nuit des Musées le 18 mai dans les musées de l'Isère, expositions en cours à Grenoble, événements culturels printaniers.",temporal,medium
+64,"Y a-t-il quelque chose à faire à Chambéry le weekend prochain?","Weekend du 25-26 mai à Chambéry: événements culturels, ateliers créatifs, activités dans les centres culturels.",temporal,medium

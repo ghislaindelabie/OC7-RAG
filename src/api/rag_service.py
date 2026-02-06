@@ -8,6 +8,7 @@ providing a clean interface for the API endpoints.
 import json
 import logging
 import os
+import re
 import time
 import tempfile
 import shutil
@@ -21,12 +22,10 @@ from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 
 from langchain_core.documents import Document
-from langchain_core.prompts import PromptTemplate
 from langchain_mistralai import MistralAIEmbeddings, ChatMistralAI
 from langchain_community.vectorstores import FAISS
 from langchain_community.retrievers import BM25Retriever
 from langchain_community.document_compressors import FlashrankRerank
-from langchain_classic.chains import RetrievalQA
 from langchain_classic.retrievers import EnsembleRetriever, ContextualCompressionRetriever
 
 # Load environment variables
@@ -34,17 +33,75 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# RAG prompt template (same as in evaluation script)
-RAG_PROMPT_TEMPLATE = """Tu es un assistant spécialisé dans les événements culturels de Savoie, Haute-Savoie et Isère.
+# Default reference date for temporal queries.
+# The OpenAgenda dataset peaks in 2024 (47% of events). This date places
+# the user in the densest data period for meaningful temporal queries.
+DEFAULT_REFERENCE_DATE = os.getenv("DEFAULT_REFERENCE_DATE", "2024-05-16")
+
+# RAG prompt template with temporal awareness
+RAG_PROMPT_TEMPLATE = """Tu es un assistant spécialisé dans les événements culturels de Savoie (73), Haute-Savoie (74) et Isère (38).
+
+Date du jour : {reference_date_formatted}
+
+Instructions temporelles :
+- Ne recommande JAMAIS d'événements dont la date est passée par rapport à la date du jour.
+- Si l'utilisateur demande "ce weekend", il s'agit du samedi et dimanche les plus proches après la date du jour.
+- Trie les événements par date, les plus proches en premier.
+- Si tous les événements du contexte sont passés, indique-le clairement.
+
 Utilise les informations suivantes pour répondre à la question de l'utilisateur.
 Si tu ne trouves pas l'information dans le contexte, dis-le clairement.
 
-Contexte:
+Contexte :
 {context}
 
-Question: {question}
+Question : {question}
 
-Réponse détaillée:"""
+Réponse détaillée :"""
+
+# Query analysis prompt for advanced method (Feature 4).
+# Extends the existing off-topic detection with temporal window extraction.
+# Single LLM call — no additional latency cost for the advanced method.
+QUERY_ANALYSIS_PROMPT = """Analyse cette question sur les événements culturels.
+Date du jour : {reference_date}
+
+Réponds en JSON strict :
+{{
+  "is_relevant": true/false,
+  "temporal_window": {{
+    "start_date": "YYYY-MM-DD" ou null,
+    "end_date": "YYYY-MM-DD" ou null
+  }},
+  "reasoning": "explication courte"
+}}
+
+Exemples :
+- "Concerts ce weekend" (ref: 2024-05-16) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-05-18", "end_date": "2024-05-19"}}, "reasoning": "ce weekend = samedi-dimanche suivants"}}
+- "Ce soir ou demain à Annecy" (ref: 2024-05-16) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-05-16", "end_date": "2024-05-17"}}, "reasoning": "ce soir + demain = aujourd'hui et lendemain"}}
+- "Festivals cet été" (ref: 2024-05-16) → {{"is_relevant": true, "temporal_window": {{"start_date": "2024-06-01", "end_date": "2024-08-31"}}, "reasoning": "été = juin à août"}}
+- "Quels sont les meilleurs restaurants?" → {{"is_relevant": false, "temporal_window": null, "reasoning": "pas lié aux événements culturels"}}
+- "Que faire à Annecy?" → {{"is_relevant": true, "temporal_window": null, "reasoning": "pas de contrainte temporelle explicite"}}
+
+Question : {question}
+"""
+
+
+def _format_date_french(iso_date: str) -> str:
+    """Format an ISO date string as a French date.
+
+    Example: "2024-05-16" → "jeudi 16 mai 2024"
+    """
+    DAYS_FR = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
+    MONTHS_FR = [
+        "", "janvier", "février", "mars", "avril", "mai", "juin",
+        "juillet", "août", "septembre", "octobre", "novembre", "décembre",
+    ]
+    try:
+        dt = datetime.strptime(iso_date, "%Y-%m-%d")
+        day_name = DAYS_FR[dt.weekday()]
+        return f"{day_name} {dt.day} {MONTHS_FR[dt.month]} {dt.year}"
+    except (ValueError, IndexError):
+        return iso_date
 
 
 def _clean_html(html_text: str) -> str:
@@ -103,8 +160,14 @@ def _build_document_text(event: dict) -> str:
 
 
 def _build_metadata(event: dict) -> dict:
-    """Extract metadata from event."""
-    return {
+    """Extract metadata from event, including ISO date fields.
+
+    Parses firstdate_begin and lastdate_end into structured date fields
+    for temporal filtering. Falls back to None for missing/malformed dates.
+    """
+    logger = logging.getLogger(__name__)
+
+    metadata = {
         "uid": event.get("uid", ""),
         "title": event.get("title_fr", ""),
         "city": event.get("location_city", ""),
@@ -112,7 +175,209 @@ def _build_metadata(event: dict) -> dict:
         "daterange": event.get("daterange_fr", ""),
         "category": event.get("category", ""),
         "url": event.get("canonicalurl", ""),
+        "event_start_date": None,
+        "event_end_date": None,
+        "event_year": None,
+        "event_month": None,
     }
+
+    firstdate = event.get("firstdate_begin")
+    if firstdate:
+        try:
+            dt = datetime.fromisoformat(firstdate.replace("Z", "+00:00"))
+            metadata["event_start_date"] = dt.strftime("%Y-%m-%d")
+            metadata["event_year"] = dt.year
+            metadata["event_month"] = dt.month
+        except (ValueError, AttributeError):
+            logger.warning("Failed to parse start date '%s' for event '%s'",
+                           firstdate, event.get("uid", "unknown"))
+
+    lastdate = event.get("lastdate_end")
+    if lastdate:
+        try:
+            dt = datetime.fromisoformat(lastdate.replace("Z", "+00:00"))
+            metadata["event_end_date"] = dt.strftime("%Y-%m-%d")
+        except (ValueError, AttributeError):
+            logger.warning("Failed to parse end date '%s' for event '%s'",
+                           lastdate, event.get("uid", "unknown"))
+
+    return metadata
+
+
+def _filter_past_events(
+    documents: List[Document], reference_date: str
+) -> List[Document]:
+    """Remove events that ended before the reference date.
+
+    Design choice: This system recommends upcoming/current events only.
+    Past events are excluded to provide actionable recommendations.
+    Events with missing or unparseable dates are kept (benefit of the doubt).
+
+    Args:
+        documents: List of retrieved documents
+        reference_date: ISO YYYY-MM-DD date string
+
+    Returns:
+        Filtered list with only current/future events
+    """
+    ref = datetime.strptime(reference_date, "%Y-%m-%d").date()
+    filtered = []
+    for doc in documents:
+        end_date_str = doc.metadata.get("event_end_date")
+        if end_date_str is None:
+            filtered.append(doc)
+            continue
+        try:
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+            if end_date >= ref:
+                filtered.append(doc)
+        except ValueError:
+            filtered.append(doc)
+    return filtered
+
+
+def _parse_query_analysis_response(text: str) -> dict:
+    """Parse LLM response from query analysis into structured dict.
+
+    Handles JSON potentially wrapped in markdown code blocks.
+    Returns a safe default (is_relevant=True) on parse failure to avoid
+    false negatives — better to attempt retrieval than to reject a valid query.
+    """
+    try:
+        json_match = re.search(r"\{.*\}", text, re.DOTALL)
+        if json_match:
+            result = json.loads(json_match.group())
+            return {
+                "is_relevant": result.get("is_relevant", True),
+                "temporal_window": result.get("temporal_window"),
+                "reasoning": result.get("reasoning", ""),
+            }
+    except (json.JSONDecodeError, AttributeError):
+        pass
+    return {"is_relevant": True, "temporal_window": None, "reasoning": "parse_error"}
+
+
+def _filter_temporal_window(
+    documents: List[Document], temporal_window: dict
+) -> List[Document]:
+    """Keep events overlapping with the LLM-extracted temporal window.
+
+    Unlike _filter_past_events (hard filter), this is a best-effort filter:
+    - Events overlapping the window are kept
+    - Events with missing dates are kept (benefit of the doubt)
+    - If filtering would empty the list, return original (never return nothing)
+
+    Args:
+        documents: List of retrieved documents
+        temporal_window: Dict with "start_date" and/or "end_date" (ISO YYYY-MM-DD or None)
+
+    Returns:
+        Filtered list, or original list if filtering would empty it
+    """
+    if not documents:
+        return documents
+
+    start = temporal_window.get("start_date")
+    end = temporal_window.get("end_date")
+
+    if not start and not end:
+        return documents
+
+    try:
+        window_start = datetime.strptime(start, "%Y-%m-%d").date() if start else None
+        window_end = datetime.strptime(end, "%Y-%m-%d").date() if end else None
+    except ValueError:
+        return documents  # Invalid window dates, skip filtering
+
+    filtered = []
+    for doc in documents:
+        event_start_str = doc.metadata.get("event_start_date")
+        event_end_str = doc.metadata.get("event_end_date")
+
+        if event_start_str is None and event_end_str is None:
+            filtered.append(doc)
+            continue
+
+        try:
+            ev_start = (
+                datetime.strptime(event_start_str, "%Y-%m-%d").date()
+                if event_start_str
+                else None
+            )
+            ev_end = (
+                datetime.strptime(event_end_str, "%Y-%m-%d").date()
+                if event_end_str
+                else None
+            )
+        except ValueError:
+            filtered.append(doc)  # keep events with unparseable dates
+            continue
+
+        # Check overlap: event overlaps window if
+        # event_start <= window_end AND event_end >= window_start
+        # Handle None values generously (assume overlap when unknown)
+        overlaps = True
+        if window_end and ev_start:
+            if ev_start > window_end:
+                overlaps = False
+        if window_start and ev_end:
+            if ev_end < window_start:
+                overlaps = False
+
+        if overlaps:
+            filtered.append(doc)
+
+    # Safeguard: if filtering removed everything, return original
+    if not filtered and documents:
+        return documents
+
+    return filtered
+
+
+def _temporal_rerank(
+    documents: List[Document],
+    target_date: str,
+    half_life_days: int = 14,
+) -> List[Document]:
+    """Rerank documents by temporal proximity to a target date.
+
+    Uses exponential decay: events further from target_date are pushed down.
+    Score formula: temporal_score = 0.5 ^ (|event_start_date - target_date| / half_life_days)
+
+    Events with missing or malformed dates get score 0 and are placed at the end,
+    preserving their relative order.
+
+    Args:
+        documents: List of retrieved documents
+        target_date: ISO YYYY-MM-DD date to rank proximity against
+        half_life_days: Events this many days away score 50%. Default 14.
+
+    Returns:
+        Documents sorted by temporal proximity (closest first)
+    """
+    if not documents:
+        return documents
+
+    target = datetime.strptime(target_date, "%Y-%m-%d").date()
+
+    scored = []
+    for i, doc in enumerate(documents):
+        start_str = doc.metadata.get("event_start_date")
+        if start_str:
+            try:
+                start = datetime.strptime(start_str, "%Y-%m-%d").date()
+                days_away = abs((start - target).days)
+                score = 0.5 ** (days_away / half_life_days)
+            except ValueError:
+                score = 0.0
+        else:
+            score = 0.0
+        # Use (score, -i) so that ties preserve original order (stable sort)
+        scored.append((score, i, doc))
+
+    # Sort by score descending, then by original index ascending (stable)
+    scored.sort(key=lambda x: (-x[0], x[1]))
+    return [doc for _, _, doc in scored]
 
 
 class RAGService:
@@ -159,7 +424,9 @@ class RAGService:
         self.embeddings = None
         self.llm = None
         self.documents = []  # Needed for BM25
-        self.chains = {}  # Cache for RAG chains
+        self._bm25_retriever = None
+        self._flashrank_compressor = None
+        self._available_methods = []
         self.index_metadata = {}
 
         # Configuration
@@ -238,8 +505,9 @@ class RAGService:
             # Load documents (needed for BM25)
             self.documents = self._load_events_as_documents()
 
-            # Load FAISS index
-            if self.index_path.exists():
+            # Load FAISS index (check for actual index file, not just directory)
+            index_file = self.index_path / "index.faiss"
+            if index_file.exists():
                 logger.info(f"Loading FAISS index from {self.index_path}")
                 # NOTE: allow_dangerous_deserialization=True is required by LangChain's FAISS
                 # wrapper because it uses pickle for the docstore. This is safe in our context:
@@ -256,12 +524,12 @@ class RAGService:
                 )
                 logger.info(f"  Index loaded with {self.vectorstore.index.ntotal} vectors")
             else:
-                logger.warning(f"FAISS index not found at {self.index_path}")
+                logger.warning(f"FAISS index not found at {index_file}")
                 self._index_loaded = False
 
-            # Setup RAG chains if index is loaded
+            # Setup retrievers if index is loaded
             if self._index_loaded and self.documents:
-                self._setup_chains()
+                self._setup_retrievers()
 
         except Exception as e:
             logger.error(f"Error loading RAG components: {e}")
@@ -269,69 +537,83 @@ class RAGService:
             self._index_loaded = False
             raise
 
-    def _setup_chains(self):
-        """Set up all three RAG chains: Basic, Hybrid, Advanced."""
+    def _setup_retrievers(self):
+        """Set up retriever components for all three RAG methods.
+
+        Unlike the previous RetrievalQA chain approach, retrievers are stored
+        as components and assembled per-request in _retrieve(). This allows
+        dynamic top_k and per-request reference_date injection.
+        """
         if not self.vectorstore or not self.llm:
             return
 
-        prompt = PromptTemplate(
-            template=RAG_PROMPT_TEMPLATE, input_variables=["context", "question"]
-        )
+        # BM25 retriever for hybrid and advanced methods
+        logger.info("Setting up BM25 retriever...")
+        self._bm25_retriever = BM25Retriever.from_documents(self.documents)
 
-        # Basic RAG (FAISS only)
-        logger.info("Setting up Basic RAG chain...")
-        basic_retriever = self.vectorstore.as_retriever(search_kwargs={"k": 5})
-        self.chains["basic"] = RetrievalQA.from_chain_type(
-            llm=self.llm,
-            chain_type="stuff",
-            retriever=basic_retriever,
-            return_source_documents=True,
-            chain_type_kwargs={"prompt": prompt},
-        )
-
-        # Hybrid RAG (FAISS + BM25)
-        logger.info("Setting up Hybrid RAG chain...")
-        bm25_retriever = BM25Retriever.from_documents(self.documents)
-        bm25_retriever.k = 5
-        faiss_retriever = self.vectorstore.as_retriever(search_kwargs={"k": 5})
-        ensemble_retriever = EnsembleRetriever(
-            retrievers=[faiss_retriever, bm25_retriever], weights=[0.5, 0.5]
-        )
-        self.chains["hybrid"] = RetrievalQA.from_chain_type(
-            llm=self.llm,
-            chain_type="stuff",
-            retriever=ensemble_retriever,
-            return_source_documents=True,
-            chain_type_kwargs={"prompt": prompt},
-        )
-
-        # Advanced RAG (with reranking)
-        # Uses FlashrankRerank for re-ordering retrieved documents by relevance.
-        # If FlashRank is unavailable (missing dependency, incompatible environment),
-        # we fall back to hybrid method to ensure the API remains functional.
-        logger.info("Setting up Advanced RAG chain...")
+        # FlashRank reranker for advanced method
+        logger.info("Setting up FlashRank reranker...")
         try:
-            compressor = FlashrankRerank(top_n=5)
-            compression_retriever = ContextualCompressionRetriever(
-                base_compressor=compressor, base_retriever=ensemble_retriever
-            )
-            self.chains["advanced"] = RetrievalQA.from_chain_type(
-                llm=self.llm,
-                chain_type="stuff",
-                retriever=compression_retriever,
-                return_source_documents=True,
-                chain_type_kwargs={"prompt": prompt},
-            )
+            self._flashrank_compressor = FlashrankRerank(top_n=200)
+            logger.info("  FlashRank reranker ready")
         except Exception as e:
-            # Fallback to hybrid for advanced - API remains functional but without reranking
             logger.warning(
                 f"FlashrankRerank unavailable ({e}), 'advanced' method will use hybrid retrieval. "
                 "Install flashrank package for reranking support."
             )
-            self.chains["advanced"] = self.chains["hybrid"]
+            self._flashrank_compressor = None
             self._advanced_uses_fallback = True
 
-        logger.info("All RAG chains ready")
+        self._available_methods = ["basic", "hybrid", "advanced"]
+        logger.info("All retrievers ready")
+
+    def _retrieve(self, question: str, method: str, fetch_k: int) -> List[Document]:
+        """Retrieve documents using the specified method.
+
+        Args:
+            question: User query
+            method: "basic", "hybrid", or "advanced"
+            fetch_k: Number of candidates to retrieve (before filtering)
+
+        Returns:
+            List of retrieved documents
+        """
+        if method == "basic":
+            return self.vectorstore.similarity_search(question, k=fetch_k)
+
+        # Hybrid and Advanced both start with FAISS + BM25 ensemble
+        faiss_retriever = self.vectorstore.as_retriever(search_kwargs={"k": fetch_k})
+        self._bm25_retriever.k = fetch_k
+        ensemble = EnsembleRetriever(
+            retrievers=[faiss_retriever, self._bm25_retriever], weights=[0.5, 0.5]
+        )
+
+        if method == "advanced" and self._flashrank_compressor is not None:
+            compression_retriever = ContextualCompressionRetriever(
+                base_compressor=self._flashrank_compressor,
+                base_retriever=ensemble,
+            )
+            return compression_retriever.invoke(question)
+
+        return ensemble.invoke(question)
+
+    def _analyze_query(self, question: str, reference_date: str) -> dict:
+        """Analyze query for relevance and temporal intent (advanced method only).
+
+        Calls the LLM once with QUERY_ANALYSIS_PROMPT to extract:
+        - is_relevant: whether the query is about cultural events
+        - temporal_window: extracted date range (if any temporal expression detected)
+        - reasoning: short explanation of the analysis
+
+        Returns safe defaults on parse failure (is_relevant=True, no temporal window).
+        """
+        prompt = QUERY_ANALYSIS_PROMPT.format(
+            reference_date=reference_date,
+            question=question,
+        )
+        response = self.llm.invoke(prompt)
+        text = response.content if hasattr(response, "content") else str(response)
+        return _parse_query_analysis_response(text)
 
     def is_ready(self) -> bool:
         """Check if service is ready to handle requests."""
@@ -487,14 +769,37 @@ class RAGService:
         )
         return filtered_events
 
-    def query(self, question: str, method: str = "hybrid", top_k: int = 5) -> Dict[str, Any]:
+    def query(
+        self,
+        question: str,
+        method: str = "hybrid",
+        top_k: int = 5,
+        reference_date: Optional[str] = None,
+    ) -> Dict[str, Any]:
         """
-        Query the RAG system.
+        Query the RAG system using a manual retrieve-then-generate pipeline.
+
+        Pipeline steps (basic/hybrid):
+        1. Retrieve candidates (fetch_k = top_k * 10 for filtering headroom)
+        2. Filter past events (event_end_date < reference_date)
+        3. Temporal proximity reranking (closest to reference_date first)
+        4. Slice to top_k
+        5. Build prompt with reference_date + context + question
+        6. Generate answer via LLM
+
+        Pipeline steps (advanced):
+        1. Query Analysis: off-topic detection + temporal window extraction
+        2. If off-topic → return off-topic response
+        3-4. Same as basic/hybrid
+        5. Apply temporal window filter (if extracted)
+        6. Temporal reranking (proximity to window start or reference_date)
 
         Args:
             question: User question
             method: RAG method ("basic", "hybrid", or "advanced")
-            top_k: Number of documents to retrieve
+            top_k: Number of documents the LLM sees and returns as sources
+            reference_date: ISO date (YYYY-MM-DD) used as "today" for temporal queries.
+                           Defaults to DEFAULT_REFERENCE_DATE.
 
         Returns:
             Dictionary with answer, sources, and metadata
@@ -502,50 +807,113 @@ class RAGService:
         if not self.is_ready():
             raise RuntimeError("RAG service not ready - index not loaded")
 
-        if method not in self.chains:
-            raise ValueError(f"Unknown RAG method: {method}. Available: {list(self.chains.keys())}")
+        if method not in self._available_methods:
+            raise ValueError(
+                f"Unknown RAG method: {method}. Available: {self._available_methods}"
+            )
 
+        ref_date = reference_date or DEFAULT_REFERENCE_DATE
         start_time = time.time()
 
         try:
-            # Get the appropriate chain
-            chain = self.chains[method]
+            # Advanced method: Enhanced Query Analysis (Feature 4)
+            analysis = None
+            if method == "advanced":
+                analysis = self._analyze_query(question, ref_date)
 
-            # Run the query
-            result = chain.invoke({"query": question})
+                if not analysis.get("is_relevant", True):
+                    response_time_ms = int((time.time() - start_time) * 1000)
+                    return {
+                        "answer": (
+                            "Je suis spécialisé dans les événements culturels "
+                            "de Savoie, Haute-Savoie et Isère. "
+                            "Votre question ne semble pas porter sur ce sujet. "
+                            "N'hésitez pas à me poser une question sur les "
+                            "événements de la région !"
+                        ),
+                        "sources": [],
+                        "metadata": {
+                            "rag_method": method,
+                            "response_time_ms": response_time_ms,
+                            "retrieved_docs_count": 0,
+                            "timestamp": datetime.utcnow().isoformat() + "Z",
+                            "model_version": self.llm_model,
+                            "reference_date": ref_date,
+                            "query_analysis": analysis,
+                        },
+                    }
 
-            # Extract answer and source documents
-            answer = result.get("result", "")
-            source_docs = result.get("source_documents", [])
+            # 1. Retrieve candidates with generous fetch_k
+            fetch_k = top_k * 10
+            docs = self._retrieve(question, method, fetch_k=fetch_k)
+
+            # 2. Filter past events
+            docs = _filter_past_events(docs, ref_date)
+
+            # 3. Apply temporal window filter (advanced only, Feature 4)
+            temporal_window = None
+            if analysis and analysis.get("temporal_window"):
+                temporal_window = analysis["temporal_window"]
+                if temporal_window.get("start_date") or temporal_window.get("end_date"):
+                    docs = _filter_temporal_window(docs, temporal_window)
+
+            # 4. Temporal proximity reranking (Feature 5)
+            # Advanced: rank by proximity to temporal window start (if extracted)
+            # Basic/Hybrid: rank by proximity to reference_date
+            rerank_target = ref_date
+            if temporal_window and temporal_window.get("start_date"):
+                rerank_target = temporal_window["start_date"]
+            docs = _temporal_rerank(docs, target_date=rerank_target)
+
+            # 5. Slice to top_k
+            docs = docs[:top_k]
+
+            # 6. Build prompt with per-request reference_date
+            context = "\n\n".join(doc.page_content for doc in docs)
+            prompt_text = RAG_PROMPT_TEMPLATE.format(
+                reference_date_formatted=_format_date_french(ref_date),
+                context=context if context else "Aucun événement trouvé.",
+                question=question,
+            )
+
+            # 6. Generate answer
+            response = self.llm.invoke(prompt_text)
+            answer = response.content if hasattr(response, "content") else str(response)
 
             # Format sources for response
             sources = []
-            for doc in source_docs[:top_k]:
+            for doc in docs:
                 source = {
                     "title": doc.metadata.get("title", "Unknown"),
                     "location": doc.metadata.get("city", None),
-                    "date_start": doc.metadata.get("daterange", None),
+                    "date_start": doc.metadata.get("event_start_date")
+                    or doc.metadata.get("daterange", None),
                     "description_snippet": (
                         doc.page_content[:200] + "..."
                         if len(doc.page_content) > 200
                         else doc.page_content
                     ),
-                    "relevance_score": None,  # FAISS doesn't provide score in chain
+                    "relevance_score": None,
                 }
                 sources.append(source)
 
             response_time_ms = int((time.time() - start_time) * 1000)
 
+            metadata = {
+                "rag_method": method,
+                "response_time_ms": response_time_ms,
+                "retrieved_docs_count": len(sources),
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "model_version": self.llm_model,
+                "reference_date": ref_date,
+            }
+            if analysis:
+                metadata["query_analysis"] = analysis
+
             return {
                 "answer": answer,
                 "sources": sources,
-                "metadata": {
-                    "rag_method": method,
-                    "response_time_ms": response_time_ms,
-                    "retrieved_docs_count": len(sources),
-                    "timestamp": datetime.utcnow().isoformat() + "Z",
-                    "model_version": self.llm_model,
-                },
+                "metadata": metadata,
             }
 
         except Exception as e:
@@ -651,10 +1019,10 @@ class RAGService:
             self._index_loaded = True
             self.index_metadata["last_updated"] = datetime.utcnow().isoformat() + "Z"
 
-            # Rebuild RAG chains with new index
+            # Rebuild retrievers with new index
             if self.llm:
-                logger.info("Rebuilding RAG chains...")
-                self._setup_chains()
+                logger.info("Rebuilding retrievers...")
+                self._setup_retrievers()
 
             build_time = time.time() - start_time
             logger.info(f"Index rebuild complete in {build_time:.2f}s")
@@ -685,7 +1053,7 @@ class RAGService:
             Dictionary with system information
         """
         return {
-            "version": "1.1.0",
+            "version": "1.2.0",
             "available_methods": ["basic", "hybrid", "advanced"],
             "index_info": {
                 "documents_count": self.get_index_size() or 0,

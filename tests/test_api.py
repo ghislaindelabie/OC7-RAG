@@ -350,3 +350,104 @@ class TestErrorHandling:
         assert "error" in data
         assert "message" in data
         # detail is optional
+
+
+# ============================================================================
+# Reference Date Tests (Feature 2)
+# ============================================================================
+
+
+class TestReferenceDate:
+    """Tests for reference_date parameter in /ask endpoint."""
+
+    def test_ask_without_reference_date_accepted(self, client):
+        """Request without reference_date uses default and returns 200."""
+        response = client.post(
+            "/api/v1/ask", json={"question": "Concerts à Annecy?", "rag_method": "basic"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_ask_with_valid_reference_date(self, client):
+        """Request with valid ISO reference_date is accepted."""
+        response = client.post(
+            "/api/v1/ask",
+            json={
+                "question": "Concerts ce weekend?",
+                "rag_method": "hybrid",
+                "reference_date": "2024-07-15",
+            },
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+    def test_ask_with_reference_date_passes_to_service(self, client, mock_rag_service):
+        """reference_date is passed through to rag_service.query()."""
+        response = client.post(
+            "/api/v1/ask",
+            json={
+                "question": "Que faire demain?",
+                "rag_method": "hybrid",
+                "reference_date": "2024-03-15",
+            },
+        )
+        assert response.status_code == status.HTTP_200_OK
+        mock_rag_service.query.assert_called_once_with(
+            question="Que faire demain?",
+            method="hybrid",
+            top_k=5,
+            reference_date="2024-03-15",
+        )
+
+    def test_ask_without_reference_date_passes_none_to_service(self, client, mock_rag_service):
+        """Omitted reference_date passes None to service (service applies default)."""
+        response = client.post(
+            "/api/v1/ask", json={"question": "Concerts à Annecy?", "rag_method": "basic"}
+        )
+        assert response.status_code == status.HTTP_200_OK
+        mock_rag_service.query.assert_called_once_with(
+            question="Concerts à Annecy?",
+            method="basic",
+            top_k=5,
+            reference_date=None,
+        )
+
+    def test_ask_invalid_reference_date_format_returns_422(self, client):
+        """Invalid date format should return 422."""
+        response = client.post(
+            "/api/v1/ask",
+            json={
+                "question": "Concerts ce weekend?",
+                "reference_date": "not-a-date",
+            },
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_ask_wrong_date_pattern_returns_422(self, client):
+        """Date in wrong format (DD-MM-YYYY) should return 422."""
+        response = client.post(
+            "/api/v1/ask",
+            json={
+                "question": "Concerts ce weekend?",
+                "reference_date": "06-02-2024",
+            },
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_ask_partial_date_returns_422(self, client):
+        """Partial date (YYYY-MM) should return 422."""
+        response = client.post(
+            "/api/v1/ask",
+            json={
+                "question": "Concerts en mars?",
+                "reference_date": "2024-03",
+            },
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    def test_response_metadata_includes_reference_date(self, client):
+        """Response metadata should include the reference_date used."""
+        response = client.post(
+            "/api/v1/ask", json={"question": "Concerts à Annecy?", "rag_method": "hybrid"}
+        )
+        data = response.json()
+        assert "reference_date" in data["metadata"]
+        assert data["metadata"]["reference_date"] == "2024-05-16"

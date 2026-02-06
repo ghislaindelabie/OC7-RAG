@@ -56,6 +56,18 @@
         .status-badge.offline {
             background: #f56565;
         }
+        .demo-notice {
+            background: #fefcbf;
+            border: 1px solid #ecc94b;
+            color: #744210;
+            padding: 8px 16px;
+            text-align: center;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        .demo-notice strong {
+            font-weight: 700;
+        }
         .chat-container {
             flex: 1;
             overflow-y: auto;
@@ -266,6 +278,11 @@
             <h1>🎭 Puls-Events Assistant</h1>
             <p>Questions sur les événements culturels en Savoie, Haute-Savoie et Isère</p>
             <span class="status-badge" id="statusBadge">🟢 En ligne</span>
+        </div>
+
+        <div class="demo-notice" id="demoNotice">
+            Mode demo — <strong>« Aujourd'hui »</strong> = <span id="refDateDisplay">16 mai 2024</span>.
+            Les requêtes temporelles (ce weekend, demain...) sont relatives à cette date de référence.
         </div>
 
         <div class="chat-container" id="chatContainer">

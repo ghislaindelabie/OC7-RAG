@@ -4,7 +4,7 @@
 **Author**: Ghislain de Labie
 **Institution**: OpenClassrooms - AI Engineer (Master-level accredited degree)
 **Date**: February 2026
-**Version**: 1.0
+**Version**: 1.2.0
 **License**: Apache License 2.0
 
 ---
@@ -16,11 +16,13 @@ This report presents the design, implementation, and evaluation of a production-
 ### Key Achievements
 
 - **Three RAG Implementations**: Basic (baseline), Hybrid (FAISS + BM25), and Advanced (with query analysis and reranking)
+- **Temporal Awareness** (v1.2.0): ISO date metadata, reference date parameter, past event filtering, temporal proximity reranking, and enhanced query analysis with temporal window extraction
 - **Production REST API**: 4 endpoints with comprehensive error handling and validation
-- **Rigorous Testing**: 87 unit tests (100% passing) and 56 annotated evaluation questions
+- **Rigorous Testing**: 145 unit tests (100% passing) and 64 annotated evaluation questions (including 12 temporal)
 - **Automated Evaluation**: LLM-as-Judge framework with Chain-of-Thought reasoning
 - **Full CI/CD Pipeline**: Docker containerization with GitHub Actions automation
 - **10,648 Events Indexed**: Complete dataset from OpenAgenda covering target departments
+- **Stateless Architecture**: No request/response storage — the API does not persist user queries or generated answers
 
 ### Technical Stack
 
@@ -34,15 +36,16 @@ This report presents the design, implementation, and evaluation of a production-
 | API Framework | FastAPI + Uvicorn |
 | Containerization | Docker + Docker Compose |
 | Orchestration | LangChain |
-| Testing | pytest (87 tests) |
+| Testing | pytest (145 tests) |
 | Evaluation | LLM-as-Judge (mistral-large) |
 
 ### Key Results
 
 - **Best Robustness**: Basic RAG achieved 66.7% PASS rate with 0% failures
 - **API Performance**: All endpoints respond < 2 seconds for typical queries
-- **Test Coverage**: 87 comprehensive tests covering all components
+- **Test Coverage**: 145 comprehensive tests covering all components (74 indexation, 39 API, 28 retriever, 4 integration)
 - **Deployment**: Production-ready with automated CI/CD pipeline
+- **Temporal Intelligence**: Past event filtering, proximity reranking, and LLM-based temporal window extraction (advanced method)
 
 ---
 
@@ -98,51 +101,66 @@ Develop a proof-of-concept intelligent chatbot that:
 
 ### 2.1 Architecture Overview
 
-The system implements three progressively sophisticated RAG approaches, each addressing specific limitations of the previous method.
+The system implements three progressively sophisticated RAG approaches, each addressing specific limitations of the previous method. Since v1.2.0, all methods follow a manual **retrieve-then-generate** pipeline with temporal awareness.
 
 ```
-User Query
+User Query + reference_date
     ↓
-[Query Processing Layer]
+[Query Analysis (advanced only): off-topic detection + temporal window]
     ↓
-[Retrieval Layer: FAISS / Hybrid / Advanced]
+[Retrieval Layer: FAISS / Hybrid / Advanced] (fetch_k = top_k × 10)
     ↓
-[Retrieved Documents (Top-K)]
+[Past Event Filter: remove events ending before reference_date]
     ↓
-[Context Assembly]
+[Temporal Window Filter (advanced only): keep overlapping events]
     ↓
-[LLM Generation Layer]
+[Temporal Proximity Reranking: closest to target date first]
+    ↓
+[Slice to Top-K]
+    ↓
+[Prompt Assembly: reference_date + temporal instructions + context]
+    ↓
+[LLM Generation]
     ↓
 Response to User
 ```
 
 ### 2.2 Implementation 1: Basic RAG (Baseline)
 
-**Architecture**:
+**Architecture** (v1.2.0 — manual pipeline):
 ```
-Query → Embedding (Mistral) → FAISS Search → Top-5 Docs → LLM → Response
+Query + reference_date
+  → FAISS Search (fetch_k = top_k × 10)
+  → Filter past events
+  → Temporal proximity reranking
+  → Slice to top_k
+  → Prompt (with reference_date + temporal instructions)
+  → LLM → Response
 ```
 
 **Components**:
 - **Embeddings**: Mistral `mistral-embed` model (1024 dimensions)
 - **Vector Store**: FAISS IndexFlatL2 (exact nearest neighbor search)
 - **Retrieval**: Pure semantic similarity (cosine distance)
+- **Temporal Pipeline** (v1.2.0): Past event filter + proximity reranking
 - **LLM**: Mistral `mistral-small-latest`
 
 **Design Rationale**:
 - Simple, interpretable baseline
-- Fast inference (no reranking overhead)
+- Fast inference (no reranking overhead, no extra LLM call)
 - Relies purely on semantic similarity
+- Temporal understanding delegated to the prompt (reference date + temporal instructions)
 
 **Strengths**:
 - Fast response time (~1-2 seconds)
 - Good semantic understanding
 - Best robustness (0% failures in evaluation)
+- Temporal awareness via prompt and post-retrieval filtering (no extra latency)
 
 **Limitations**:
 - May miss keyword-specific matches (e.g., exact place names)
 - No query reformulation or analysis
-- Fixed retrieval strategy regardless of query type
+- No explicit temporal window extraction (relies on prompt-based interpretation)
 
 **Evaluation Results** (18 questions):
 - PASS: 66.7% (12/18)
@@ -151,15 +169,22 @@ Query → Embedding (Mistral) → FAISS Search → Top-5 Docs → LLM → Respon
 
 ### 2.3 Implementation 2: Hybrid RAG (Production Default)
 
-**Architecture**:
+**Architecture** (v1.2.0 — manual pipeline):
 ```
-Query → [Parallel: FAISS + BM25] → RRF Fusion → Top-5 Docs → LLM → Response
+Query + reference_date
+  → [Parallel: FAISS + BM25] → RRF Fusion (fetch_k = top_k × 10)
+  → Filter past events
+  → Temporal proximity reranking
+  → Slice to top_k
+  → Prompt (with reference_date + temporal instructions)
+  → LLM → Response
 ```
 
 **Components**:
 - **Dense Retrieval**: FAISS with Mistral embeddings
 - **Sparse Retrieval**: BM25 lexical matching (rank_bm25)
 - **Fusion**: Reciprocal Rank Fusion (RRF)
+- **Temporal Pipeline** (v1.2.0): Past event filter + proximity reranking
 - **Orchestration**: LangChain EnsembleRetriever
 
 **Reciprocal Rank Fusion Formula**:
@@ -191,52 +216,72 @@ where k = 60 (constant)
 
 ### 2.4 Implementation 3: Advanced RAG
 
-**Architecture**:
+**Architecture** (v1.2.0 — enhanced with temporal awareness):
 ```
-Query → Query Analysis → HyDE → FAISS → Top-10 → Rerank → Top-5 → LLM → Response
+Query + reference_date
+  → Enhanced Query Analysis (off-topic + temporal window extraction)
+  → If off-topic → polite refusal
+  → [Parallel: FAISS + BM25] → RRF + FlashRank Reranking (fetch_k = top_k × 10)
+  → Filter past events
+  → Temporal window filter (if extracted)
+  → Temporal proximity reranking (target = window start or reference_date)
+  → Slice to top_k
+  → Prompt (with reference_date + temporal instructions)
+  → LLM → Response
 ```
 
 **Components**:
-1. **Query Analysis**: Off-topic detection and query reformulation
-2. **HyDE** (Hypothetical Document Embeddings): Generate hypothetical event descriptions
-3. **Initial Retrieval**: FAISS on hypothetical documents → top-10
-4. **Reranking**: FlashRank cross-encoder → top-5
-5. **Generation**: LLM with reranked context
+1. **Enhanced Query Analysis** (v1.2.0): Off-topic detection + temporal window extraction in a single LLM call
+2. **Retrieval**: FAISS + BM25 ensemble with FlashRank cross-encoder reranking
+3. **Temporal Pipeline**: Past event filter → temporal window filter → proximity reranking
+4. **Generation**: LLM with temporally filtered and reranked context
 
-**Query Analysis Logic**:
+**Enhanced Query Analysis** (v1.2.0):
+
+The advanced method's query analysis LLM call was extended to also extract temporal intent, at zero additional latency cost (same single LLM call):
+
 ```python
-if query_is_off_topic(query):
-    return polite_refusal()
-else:
-    reformulated_query = reformulate_for_clarity(query)
-    proceed_with_retrieval(reformulated_query)
+# LLM returns structured JSON:
+{
+  "is_relevant": true,           # Off-topic detection
+  "temporal_window": {           # NEW in v1.2.0
+    "start_date": "2024-02-10",
+    "end_date": "2024-02-11"
+  },
+  "reasoning": "ce weekend = samedi-dimanche suivants"
+}
 ```
 
-**HyDE Process**:
-1. LLM generates hypothetical event description matching the query
-2. Hypothetical description embedded and used for retrieval
-3. Rationale: Bridges vocabulary gap between query and documents
+Examples of temporal window extraction:
+- "Concerts ce weekend" (ref: 2024-05-16) → window: May 18-19
+- "Festivals cet été" (ref: 2024-05-16) → window: Jun 1 - Aug 31
+- "Que faire à Annecy?" → no temporal window (null)
+
+**Temporal Window Filter** (v1.2.0):
+
+Applied only when the query analysis extracts a temporal window. Uses overlap logic: keeps events whose date range overlaps the extracted window. Includes a safety net: if filtering would remove ALL documents, the filter is skipped (avoids empty results from imprecise LLM extraction).
 
 **Reranking with FlashRank**:
 - Model: `ms-marco-MiniLM-L-12-v2` (cross-encoder)
-- Input: (query, document) pairs from top-10 results
+- Input: (query, document) pairs from ensemble retrieval
 - Output: Relevance scores for re-ordering
-- Keeps only top-5 after reranking
 
 **Design Rationale**:
 - Query analysis prevents wasted retrieval on off-topic queries
-- HyDE improves retrieval for short or vague queries
+- Temporal window extraction enables precise date filtering (advanced only)
 - Cross-encoder reranking refines initial bi-encoder results
+- Single LLM call for both off-topic detection and temporal extraction
 
 **Strengths**:
-- Best quality for complex queries
+- Best quality for complex and temporal queries
 - Off-topic detection capability
-- Highest precision in final top-5
+- Highest precision in final top-k
+- Temporal window extraction for precise date-aware filtering
 
 **Limitations**:
 - Slowest method (~3-4 seconds)
 - Query analysis not perfect (some off-topic queries slip through)
-- Increased complexity
+- Temporal window extraction depends on LLM accuracy (safety net mitigates risks)
 
 **Evaluation Results** (18 questions):
 - PASS: 66.7% (12/18)
@@ -253,20 +298,27 @@ else:
 - Events typically < 512 tokens (manageable size)
 - Simplifies source attribution
 
-**Document Structure**:
+**Document Structure** (v1.2.0 — with ISO date metadata):
 ```python
 {
     "content": f"{title}\n{description}\n{location}\n{date}",
     "metadata": {
-        "title": "...",
-        "location_city": "...",
-        "location_department": "...",
-        "date_start": "...",
-        "event_type": "...",
-        "source_url": "..."
+        "uid": "abc123",
+        "title": "Concert de Jazz",
+        "city": "Annecy",
+        "department": "Haute-Savoie",
+        "daterange": "Samedi 15 juin, 20h00",     # French text for display
+        "event_start_date": "2024-06-15",          # ISO date for filtering
+        "event_end_date": "2024-06-15",            # ISO date for filtering
+        "event_year": 2024,                        # Convenience field
+        "event_month": 6,                          # Convenience field
+        "category": "concert",
+        "url": "https://..."
     }
 }
 ```
+
+The ISO date fields (`event_start_date`, `event_end_date`) were added in v1.2.0 to enable temporal filtering and reranking. They are parsed from OpenAgenda's `firstdate_begin` and `lastdate_end` fields. Events with missing or malformed dates receive `None` values and are kept through all filters (benefit of the doubt).
 
 **Alternative Considered**: Fixed-size chunking (400 tokens)
 - **Rejected**: Would split event descriptions arbitrarily, losing metadata association
@@ -306,27 +358,54 @@ else:
 
 ### 2.8 Prompt Engineering
 
-**System Prompt Structure**:
+**System Prompt Structure** (v1.2.0 — with temporal awareness):
 ```
-You are an intelligent assistant specializing in cultural events
-in Savoie (73), Haute-Savoie (74), and Isère (38).
+Tu es un assistant spécialisé dans les événements culturels
+de Savoie (73), Haute-Savoie (74) et Isère (38).
 
-Context (Retrieved Events):
+Date du jour : {reference_date_formatted}
+
+Instructions temporelles :
+- Ne recommande JAMAIS d'événements dont la date est passée
+  par rapport à la date du jour.
+- Si l'utilisateur demande "ce weekend", il s'agit du samedi
+  et dimanche les plus proches après la date du jour.
+- Trie les événements par date, les plus proches en premier.
+- Si tous les événements du contexte sont passés, indique-le clairement.
+
+Contexte :
 {context}
 
-Rules:
-1. Base responses ONLY on provided context
-2. Include event details: title, date, location
-3. If no relevant events, say so clearly
-4. Provide source URLs when available
-5. Format dates in French locale
+Question : {question}
+
+Réponse détaillée :
 ```
 
 **Key Design Choices**:
+- **Reference date injection** (v1.2.0): The LLM knows what "today" is, enabling interpretation of relative expressions like "ce weekend", "demain", "en mars"
+- **Temporal instructions** (v1.2.0): Explicit rules for past event exclusion, weekend interpretation, and chronological sorting
 - Explicit grounding instruction (prevent hallucination)
 - Structured output requirements (date, location, title)
 - Graceful handling of no-results cases
-- French locale for user-facing dates
+- French locale for user-facing dates and prompt
+
+**Temporal Understanding Strategy** (v1.2.0):
+
+The prompt is the **primary temporal mechanism** for Basic/Hybrid methods and a **complementary mechanism** for Advanced:
+
+| Method | Temporal Mechanism | Extra LLM Call |
+|--------|-------------------|----------------|
+| Basic | Prompt only + post-retrieval filter + proximity reranking | No |
+| Hybrid | Prompt only + post-retrieval filter + proximity reranking | No |
+| Advanced | Query Analysis (temporal window extraction) + prompt + filter + reranking | No (extends existing call) |
+
+**Design Decision — No Regex for Temporal Parsing**:
+
+Regex was considered and rejected for parsing temporal expressions. Reasons:
+- Cannot handle combinations ("ce soir ou demain"), vague expressions ("bientôt"), or domain knowledge ("pendant les vacances scolaires")
+- Risk of false negatives (filtering out relevant events) outweighs the marginal precision gain
+- The LLM sees events with ISO dates in context and naturally handles temporal queries
+- Simpler codebase: no pattern maintenance
 
 ---
 
@@ -390,12 +469,13 @@ Rules:
 
 **Purpose**: Core RAG query endpoint
 
-**Request Schema**:
+**Request Schema** (v1.2.0 — with `reference_date`):
 ```json
 {
     "question": "Quels concerts à Annecy ce weekend?",
     "rag_method": "hybrid",
-    "top_k": 5
+    "top_k": 5,
+    "reference_date": "2024-05-16"
 }
 ```
 
@@ -403,23 +483,39 @@ Rules:
 - `question`: 3-1000 characters, stripped whitespace, max 5 consecutive repeated chars
 - `rag_method`: Enum ["basic", "hybrid", "advanced"], default "hybrid"
 - `top_k`: Integer 1-20, default 5
+- `reference_date` (v1.2.0): Optional ISO date (YYYY-MM-DD), default "2024-05-16". Used as "today" for interpreting relative temporal expressions.
 
-**Response Schema**:
+**Response Schema** (v1.2.0 — with temporal metadata):
 ```json
 {
     "answer": "Voici les concerts à Annecy ce weekend:\n\n1. ...",
     "sources": [
         {
             "title": "Concert de Jazz",
-            "location": "Annecy, Haute-Savoie",
-            "date": "2026-02-08",
-            "url": "https://..."
+            "location": "Annecy",
+            "date_start": "2024-02-10",
+            "description_snippet": "Un concert exceptionnel...",
+            "relevance_score": null
         }
     ],
     "metadata": {
         "rag_method": "hybrid",
         "response_time_ms": 1523,
-        "num_sources": 5
+        "retrieved_docs_count": 5,
+        "timestamp": "2026-02-06T10:30:00Z",
+        "model_version": "mistral-small-latest",
+        "reference_date": "2024-05-16"
+    }
+}
+```
+
+For the advanced method, metadata additionally includes `query_analysis`:
+```json
+{
+    "query_analysis": {
+        "is_relevant": true,
+        "temporal_window": {"start_date": "2024-02-10", "end_date": "2024-02-11"},
+        "reasoning": "ce weekend = samedi-dimanche suivants"
     }
 }
 ```
@@ -428,6 +524,9 @@ Rules:
 - Source attribution (transparency, verification)
 - Response time tracking (performance monitoring)
 - Metadata enables A/B testing of RAG methods
+- `reference_date` in response metadata confirms which date was used (v1.2.0)
+- Query analysis transparency for advanced method debugging (v1.2.0)
+- **Stateless**: No request or response is stored; there is no database
 
 #### 3.2.4 POST /api/v1/rebuild
 
@@ -497,29 +596,38 @@ Rules:
 
 ### 3.4 Service Architecture
 
-**Pattern**: Singleton with lazy loading
+**Pattern**: Singleton with lazy loading and manual pipeline (v1.2.0)
 
 ```python
 class RAGService:
     _instance = None
 
-    def __init__(self):
-        self.index = None
-        self.llm = None
-        self.retrievers = {}
-        self._load_components()
+    def query(self, question, method="hybrid", top_k=5, reference_date=None):
+        """Manual retrieve-then-generate pipeline (v1.2.0)."""
+        ref_date = reference_date or DEFAULT_REFERENCE_DATE
+        fetch_k = top_k * 10
 
-    @classmethod
-    def get_instance(cls):
-        if cls._instance is None:
-            cls._instance = cls()
-        return cls._instance
+        # 1. Retrieve candidates
+        docs = self._retrieve(question, method, fetch_k)
+        # 2. Filter past events
+        docs = _filter_past_events(docs, ref_date)
+        # 3. Temporal window filter (advanced only)
+        # 4. Temporal proximity reranking
+        docs = _temporal_rerank(docs, target_date=ref_date)
+        # 5. Slice to top_k
+        docs = docs[:top_k]
+        # 6. Build prompt with reference_date + context
+        # 7. Generate answer
+        ...
 ```
+
+**Key Change in v1.2.0**: Replaced `RetrievalQA` chains with explicit pipeline. Each step (retrieve, filter, rerank, generate) is independent and testable. `top_k` now honestly controls how many documents the LLM sees (previously cosmetic).
 
 **Rationale**:
 - Single index instance (memory efficiency)
 - Lazy loading (fast API startup)
-- Thread-safe singleton (global lock)
+- Per-request `top_k` and `reference_date` injection (not hardcoded at init)
+- **Stateless**: No request or response is stored — no database
 
 ### 3.5 Web Chat Interface
 
@@ -547,14 +655,12 @@ class RAGService:
 
 **File**: `tests/test_data/test_questions.csv`
 
-**Size**: 56 annotated questions (18 used in initial evaluation)
+**Size**: 64 annotated questions (18 used in initial evaluation, 12 temporal added in v1.2.0)
 
 **Structure**:
 ```csv
-question,expected_answer,category,difficulty
-"Quels concerts à Annecy?","List of concerts in Annecy",factual,easy
-"Événements gratuits pour enfants?","Free family events",complex,medium
-"Comment faire une tarte?","Off-topic: cooking, not events",off_topic,easy
+id,question,expected_answer,category,difficulty
+53,"Quels ateliers créatifs ont lieu ce weekend à Chambéry?","Ateliers aux Octopodes le samedi 10 février...",temporal,medium
 ```
 
 **Categories**:
@@ -563,13 +669,28 @@ question,expected_answer,category,difficulty
 |----------|-------|-------------|---------|
 | **Factual** | 30+ | Direct questions about specific events | Test basic retrieval accuracy |
 | **Complex** | 10+ | Multi-criteria (location + type + date) | Test advanced reasoning |
-| **Off-topic** | 8+ | Unrelated to cultural events | Test query analysis |
-| **Vague** | 8+ | Incomplete or ambiguous queries | Test error handling |
+| **Off-topic** | 8 | Unrelated to cultural events | Test query analysis |
+| **Vague** | 6 | Incomplete or ambiguous queries | Test error handling |
+| **Temporal** (v1.2.0) | 12 | Date-aware queries with known ground truth | Test temporal pipeline |
+
+**Temporal Category** (v1.2.0):
+
+The 12 temporal questions are **data-driven**: expected answers were built by analyzing real events in the dataset around the reference date (2024-05-16). Categories include:
+
+| Subcategory | Example | What It Tests |
+|-------------|---------|---------------|
+| Weekend | "Quels ateliers ce weekend à Chambéry?" | "ce weekend" → Feb 10-11 |
+| Tomorrow | "Que faire demain à Chambéry?" | "demain" → Feb 7 |
+| This evening | "Ce soir ou demain, événements?" | Combination logic |
+| Month | "Ateliers en mars à Chambéry?" | Month scoping |
+| Season | "Festivals cet été en Haute-Savoie?" | Summer 2024 |
+| Past reference | "Qu'est-ce qui s'est passé la semaine dernière?" | System handles gracefully |
+| This week | "Événements à Annecy cette semaine?" | Week scoping |
 
 **Difficulty Levels**:
 - **Easy**: Single criterion (e.g., "concerts in Annecy")
-- **Medium**: Two criteria (e.g., "free events in Savoie")
-- **Hard**: Three+ criteria or temporal reasoning (e.g., "jazz festivals this summer in Grenoble")
+- **Medium**: Two criteria (e.g., "free events in Savoie") or temporal query
+- **Hard**: Three+ criteria, complex temporal reasoning, or combination queries
 
 ### 4.2 LLM-as-Judge Methodology
 
@@ -622,7 +743,7 @@ Respond in JSON format:
 
 ### 4.4 Evaluation Results
 
-**Dataset**: 18 questions (subset of 56)
+**Dataset**: 18 questions (subset of 64)
 
 **Results Summary**:
 
@@ -677,7 +798,7 @@ Respond in JSON format:
 - `evaluation_summary_[timestamp].txt`: Statistics summary
 - `evaluation_details_[timestamp].csv`: Spreadsheet format
 
-**Scalability**: Setting `RUN_FULL_EVALUATION = True` processes all 56 questions
+**Scalability**: Setting `RUN_FULL_EVALUATION = True` processes all 64 questions (including 12 temporal)
 
 ---
 
@@ -685,14 +806,15 @@ Respond in JSON format:
 
 ### 5.1 Test Coverage
 
-**Total Tests**: 87 (100% passing)
+**Total Tests**: 145 (100% passing, +58 since v1.0)
 
 **Breakdown**:
-- **31 API tests** (`tests/test_api.py`)
-- **18 Indexation tests** (`tests/test_indexation.py`)
-- **28 Retriever tests** (`tests/test_retriever.py`)
+- **39 API tests** (`tests/test_api.py`) — +8 for reference_date validation, temporal metadata
+- **74 Indexation tests** (`tests/test_indexation.py`) — +56 for ISO date parsing, past event filtering, temporal window filtering, temporal proximity reranking, query analysis parsing, pipeline integration
+- **28 Retriever tests** (`tests/test_retriever.py`) — unchanged
+- **4 Integration tests** (skipped in CI — require live API key)
 
-### 5.2 API Tests (31 tests)
+### 5.2 API Tests (39 tests)
 
 **Categories**:
 
@@ -702,7 +824,7 @@ Respond in JSON format:
    - Tracks LLM availability
    - Includes timestamp
 
-2. **Ask Endpoint** (13 tests)
+2. **Ask Endpoint** (17 tests)
    - Valid question returns answer
    - Empty question returns 422
    - Different RAG methods work
@@ -712,6 +834,10 @@ Respond in JSON format:
    - Invalid RAG method rejected
    - Question length validation
    - Repeated character detection
+   - Reference date accepted and returned in metadata (v1.2.0)
+   - Invalid reference date format returns 422 (v1.2.0)
+   - Default reference date applied when not specified (v1.2.0)
+   - Temporal metadata present in response (v1.2.0)
 
 3. **Info Endpoint** (2 tests)
    - Returns system information
@@ -735,9 +861,9 @@ Respond in JSON format:
 - Each feature developed until tests pass
 - Ensures testability of code
 
-### 5.3 Indexation Tests (18 tests)
+### 5.3 Indexation Tests (74 tests)
 
-**Purpose**: Verify FAISS index creation and operations
+**Purpose**: Verify FAISS index creation, operations, and temporal pipeline components
 
 **Categories**:
 
@@ -767,10 +893,45 @@ Respond in JSON format:
    - Duplicate documents
    - Documents with missing metadata
 
+5. **ISO Date Metadata** (v1.2.0, 10 tests)
+   - Valid ISO dates parsed from firstdate_begin/lastdate_end
+   - Missing dates result in None metadata
+   - Malformed dates result in None metadata with warning
+   - event_year and event_month correctly extracted
+   - Timezone-aware dates handled
+
+6. **Reference Date & Prompt** (v1.2.0, 16 tests)
+   - Default reference date applied
+   - Custom reference date used
+   - French date formatting
+   - Prompt contains reference date
+   - Temporal instructions present in prompt
+
+7. **Pipeline & Past Event Filter** (v1.2.0, 8 tests)
+   - Past events removed correctly
+   - Current/future events kept
+   - Events with None dates kept
+   - top_k controls actual retrieval
+   - fetch_k = top_k * 10
+
+8. **Query Analysis & Temporal Window** (v1.2.0, 19 tests)
+   - Temporal window extracted for weekend/tomorrow/month queries
+   - Off-topic queries detected
+   - JSON parsing with markdown code blocks
+   - Safe defaults on parse failure
+   - Window filter keeps overlapping events
+   - Empty-result safeguard works
+
+9. **Temporal Proximity Reranking** (v1.2.0, 9 tests)
+   - Closer events rank higher
+   - Half-life decay works correctly
+   - Events with no date placed at end
+   - Empty list returns empty
+   - Different target dates produce different rankings
+
 **Key Testing Tool**: `FakeEmbeddings` from LangChain
 - Generates deterministic dummy embeddings
 - Avoids API calls in unit tests (fast, no cost)
-- Pattern: `[1.0] + [0.0] * (dimensions - 1)` for first doc, `[0.0, 1.0, 0.0, ...]` for second, etc.
 
 ### 5.4 Retriever Tests (28 tests)
 
@@ -918,7 +1079,7 @@ def _load_components(self):
 **1. Test**:
 - Checkout code
 - Install dependencies
-- Run pytest (87 tests)
+- Run pytest (145 tests)
 - Fail pipeline if any test fails
 
 **2. Build**:
@@ -1038,22 +1199,25 @@ docker compose ps
 - Fine-tuned classifier specifically for event-related queries
 - Or: Use rule-based filter for obvious off-topic patterns (cooking, sports, etc.)
 
-### 7.2 Date Filtering
+### 7.2 Temporal Query Handling (Resolved in v1.2.0)
 
 **Challenge**: User queries like "ce weekend" or "ce mois-ci" require temporal reasoning
 
-**Root Cause**: System retrieves events from entire dataset (2023-present), LLM must infer "current" date
+**Root Cause**: System retrieved events from entire dataset (2023-present), LLM had no concept of "current" date
 
-**Attempted Solutions**:
-1. Inject current date into system prompt → LLM still struggles with relative dates
-2. Pre-filter documents by date range → Requires query analysis to extract date constraints
+**Solution Implemented** (v1.2.0 — 6 features, 62 new tests):
 
-**Current Status**: Temporal queries categorized as "complex" with medium success rate (56%)
+1. **ISO Date Metadata**: Parsed `firstdate_begin`/`lastdate_end` into structured ISO dates at indexing time
+2. **Reference Date API Parameter**: `reference_date` (default: 2024-05-16) injected into prompts so the LLM knows "today"
+3. **Manual Pipeline**: Replaced `RetrievalQA` chains with explicit retrieve-then-generate, making `top_k` honestly control retrieval (was previously cosmetic)
+4. **Past Event Filter**: Post-retrieval removal of events ending before reference_date
+5. **Temporal Proximity Reranking**: Exponential decay ranking (half-life: 14 days) — events closer to target date rank first
+6. **Enhanced Query Analysis** (advanced only): LLM-based temporal window extraction ("ce weekend" → Feb 10-11) with overlap filtering
 
-**Recommended Future Solution**:
-- Named Entity Recognition (NER) to extract date expressions
-- Convert relative dates to absolute dates before retrieval
-- Filter documents before embedding search
+**Design Decision — No Regex**:
+LLM handles temporal understanding via prompt (basic/hybrid) or query analysis (advanced). Regex was rejected because it cannot handle combinations ("ce soir ou demain"), vague expressions ("bientôt"), or domain knowledge ("pendant les vacances scolaires").
+
+**Result**: 12 data-driven temporal evaluation questions added to test dataset, covering weekend, tomorrow, month, season, past reference, and combination queries
 
 ### 7.3 Deployment Without Data Files
 
@@ -1147,26 +1311,30 @@ def rebuild_index(self):
 
 ## 9. Future Enhancements
 
-### 9.1 High Priority
+### 9.1 Recently Completed (v1.2.0)
+
+- ~~**Temporal Query Handling**~~: **Done** — ISO date metadata, reference date API parameter, past event filter, temporal proximity reranking, enhanced query analysis with temporal window extraction (62 new tests)
+
+### 9.2 High Priority
 
 1. **Improve Off-Topic Detection**
    - Train binary classifier on event-related queries
    - Estimated effort: 3 days
    - Impact: High (44% failure rate on off-topic queries)
 
-2. **Temporal Query Handling**
-   - NER for date extraction
-   - Pre-filtering by date range
-   - Estimated effort: 5 days
-   - Impact: Medium (improves complex query success rate)
-
-3. **Vector Store Migration to Chroma**
+2. **Vector Store Migration to Chroma**
    - Eliminate pickle serialization risk
-   - Better persistence and filtering
+   - Native metadata pre-filtering (more efficient than FAISS post-filtering for date queries)
    - Estimated effort: 4 hours (see `docs/future/VECTOR_STORE_MIGRATION.md`)
-   - Impact: Low (security improvement, no user-facing change)
+   - Impact: Medium (security + better temporal filtering)
 
-### 9.2 Medium Priority
+3. **API Authentication**
+   - JWT-based authentication
+   - See `docs/future/API_AUTHENTICATION.md`
+   - Estimated effort: 2 days
+   - Impact: High for production deployment
+
+### 9.3 Medium Priority
 
 4. **Multi-Language Support**
    - English and Italian query support (Alps region)
@@ -1179,28 +1347,28 @@ def rebuild_index(self):
    - Estimated effort: 3 days
    - Impact: Medium (improves evaluation dataset)
 
-6. **API Authentication**
-   - JWT-based authentication
-   - See `docs/future/API_AUTHENTICATION.md`
-   - Estimated effort: 2 days
-   - Impact: High for production deployment
+6. **Conversational Memory**
+   - Multi-turn conversations with context
+   - Estimated effort: 1 week
+   - Impact: Medium (better user experience)
 
-### 9.3 Low Priority
+### 9.4 Low Priority
 
 7. **RAGAS Metrics Integration**
    - Automated faithfulness, relevancy, precision, recall
    - Estimated effort: 2 days
    - Impact: Low (evaluation already functional)
 
-8. **Conversational Memory**
-   - Multi-turn conversations with context
-   - Estimated effort: 1 week
-   - Impact: Medium (better user experience)
-
-9. **Caching Layer**
+8. **Caching Layer**
    - Cache frequent queries (Redis)
    - Estimated effort: 2 days
    - Impact: Low (API already fast)
+
+9. **HTTPS / TLS**
+   - SSL certificate via Let's Encrypt for public access
+   - See `docs/HTTPS_SETUP.md`
+   - Estimated effort: 1 day
+   - Impact: Required for public-facing deployment
 
 ---
 
@@ -1211,33 +1379,39 @@ def rebuild_index(self):
 This project successfully implemented a production-ready RAG system for cultural event recommendations with:
 
 1. **Three RAG Methods**: Progressive sophistication from basic to advanced
-2. **Rigorous Evaluation**: 56 annotated questions, LLM-as-Judge, 87 unit tests
-3. **Production API**: 4 endpoints, comprehensive error handling, OpenAPI docs
-4. **Full CI/CD**: Docker, GitHub Actions, automated deployment
-5. **Comprehensive Documentation**: 6 core docs, 8 reference docs, 4 archived
+2. **Temporal Awareness** (v1.2.0): Reference date, past event filtering, proximity reranking, temporal window extraction
+3. **Rigorous Evaluation**: 64 annotated questions (including 12 temporal), LLM-as-Judge, 145 unit tests
+4. **Production API**: 4 endpoints, comprehensive error handling, OpenAPI docs, stateless architecture
+5. **Full CI/CD**: Docker, GitHub Actions, automated deployment
+6. **Comprehensive Documentation**: Technical report, temporal improvements plan, version history, troubleshooting guide
 
 ### 10.2 Key Learnings
 
 1. **Simpler is Often Better**: Basic RAG had best robustness (0% failures)
 2. **Off-Topic Detection is Hard**: LLM-based query analysis unreliable without fine-tuning
-3. **Test-Driven Development Works**: 87 tests written alongside features prevented regressions
+3. **Test-Driven Development Works**: 145 tests written alongside features prevented regressions
 4. **Docker Simplifies Deployment**: Single source of truth (Dockerfile) for all environments
+5. **LLM-Based Temporal Parsing > Regex** (v1.2.0): Regex cannot handle combinatory queries ("ce soir ou demain"), vague expressions, or domain knowledge — the LLM handles these naturally through prompt context
+6. **top_k Must Be Honest** (v1.2.0): Discovered that `top_k` was cosmetic (hardcoded in retrievers). Manual pipeline fixed this — API contract now matches actual behavior.
 
 ### 10.3 Production Readiness
 
 **The system is production-ready** with:
-- ✅ 100% test passing rate (87 tests)
+- ✅ 100% test passing rate (145 tests)
 - ✅ Automated CI/CD pipeline
 - ✅ Docker containerization with health checks
 - ✅ Error handling and validation
 - ✅ Monitoring and logging
 - ✅ Comprehensive documentation
+- ✅ Temporal awareness with configurable reference date
+- ✅ Stateless API (no request/response storage)
 
 **Known Limitations**:
-- Off-topic query detection needs improvement
-- Temporal queries (relative dates) have medium success rate
+- Off-topic query detection needs improvement (44% failure rate)
 - Single-user deployment (no authentication)
 - SSH tunnel required for external access
+- Reference date defaults to 2024-05-16 (dataset peak) — needs updating when dataset is refreshed
+- FAISS post-filtering may return fewer than top_k results if many events are past
 
 ### 10.4 Recommendations
 
@@ -1245,16 +1419,17 @@ This project successfully implemented a production-ready RAG system for cultural
 1. Deploy with Hybrid RAG (best balance of quality and speed)
 2. Add authentication (JWT) if exposing publicly
 3. Set up monitoring dashboard (Grafana + Prometheus)
+4. Update DEFAULT_REFERENCE_DATE when refreshing the dataset
 
 **For Future Iterations**:
 1. Improve off-topic detection (fine-tuned classifier)
-2. Add temporal query handling (NER + date filtering)
-3. Migrate to Chroma vector store
-4. Implement user feedback loop
+2. Migrate to Chroma vector store (native date pre-filtering)
+3. Implement user feedback loop
+4. Add HTTPS for public access
 
 ### 10.5 Final Assessment
 
-The Puls-Events RAG system successfully demonstrates how Retrieval-Augmented Generation can provide accurate, grounded responses to natural language queries about cultural events. With 66.7% PASS rate across all RAG methods and 0% failures for the basic method, the system meets the core requirement of factual accuracy. The comprehensive testing, evaluation, and deployment infrastructure ensure the system is maintainable and scalable for future enhancements.
+The Puls-Events RAG system successfully demonstrates how Retrieval-Augmented Generation can provide accurate, grounded responses to natural language queries about cultural events. With 66.7% PASS rate across all RAG methods and 0% failures for the basic method, the system meets the core requirement of factual accuracy. The v1.2.0 temporal awareness improvements (reference date, past event filtering, proximity reranking, temporal window extraction) address one of the most critical user needs: finding events happening at specific times. The comprehensive testing (145 tests), evaluation (64 questions), and deployment infrastructure ensure the system is maintainable and scalable for future enhancements.
 
 ---
 
@@ -1283,28 +1458,33 @@ OC7-RAG/
 │   ├── archive/                # Historical documents
 │   ├── reference/              # Technical reference
 │   ├── future/                 # Future enhancements
-│   └── technical_report.md     # This document
+│   ├── technical_report.md     # This document
+│   └── TEMPORAL_IMPROVEMENTS_PLAN.md  # v1.2.0 design document
 ├── notebooks/
 │   └── 01_baseline_rag.ipynb   # Interactive RAG development
 ├── src/
-│   ├── api/                    # FastAPI application
-│   ├── data/                   # Data loading and preprocessing
-│   └── rag/                    # RAG components
+│   └── api/
+│       ├── main.py             # FastAPI endpoints
+│       ├── rag_service.py      # RAG service (retrieval, generation, temporal pipeline)
+│       └── schemas.py          # Pydantic request/response models
 ├── tests/
-│   ├── test_api.py             # API tests (31)
-│   ├── test_indexation.py      # Index tests (18)
+│   ├── test_api.py             # API tests (39)
+│   ├── test_indexation.py      # Index + temporal tests (74)
 │   ├── test_retriever.py       # Retriever tests (28)
 │   └── test_data/
-│       └── test_questions.csv  # Evaluation dataset (56)
+│       └── test_questions.csv  # Evaluation dataset (64 questions)
 ├── scripts/
 │   ├── run_api.py              # API launcher
-│   └── deploy.sh               # Deployment script
+│   ├── deploy.sh               # Deployment script
+│   └── verify_setup.py         # Environment verification
 ├── Dockerfile                  # Multi-stage Docker build
 ├── docker-compose.yml          # Local development
 ├── docker-compose.prod.yml     # Production deployment
+├── Makefile                    # 26 developer commands
 ├── requirements.txt            # Python dependencies
 ├── .github/workflows/
 │   └── deploy.yml              # CI/CD pipeline
+├── VERSION_HISTORY.md          # Complete changelog
 └── README.md                   # Main documentation
 ```
 
@@ -1312,16 +1492,19 @@ OC7-RAG/
 
 | Metric | Value |
 |--------|-------|
-| Events Indexed | 10,648 |
+| Events Indexed | ~10,648 |
 | Geographic Coverage | 3 departments (73, 74, 38) |
-| Test Questions | 56 annotated |
-| Unit Tests | 87 (100% passing) |
+| Test Questions | 64 annotated (12 temporal) |
+| Unit Tests | 145 (100% passing) |
 | API Endpoints | 4 |
-| RAG Methods | 3 |
+| RAG Methods | 3 (basic, hybrid, advanced) |
 | Avg Response Time | 1-4 seconds (method-dependent) |
 | Docker Image Size | 1.45 GB |
 | Evaluation PASS Rate | 66.7% (all methods) |
 | Best Robustness | Basic RAG (0% failures) |
+| Default Reference Date | 2024-05-16 |
+| Temporal Rerank Half-life | 14 days |
+| Data Storage | Stateless (no request/response persistence) |
 
 ### Appendix D: References
 
@@ -1334,8 +1517,8 @@ OC7-RAG/
 
 ---
 
-**Document Version**: 1.0
+**Document Version**: 1.2.0
 **Last Updated**: February 2026
-**Total Pages**: ~15 pages (when converted to PDF)
+**Total Pages**: ~18 pages (when converted to PDF)
 **Target Audience**: Technical evaluators, future developers, project stakeholders
 
