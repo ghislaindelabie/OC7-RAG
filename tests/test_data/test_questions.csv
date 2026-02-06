@@ -51,7 +51,15 @@ id,question,expected_answer,category,difficulty
 50,"Savoie","[VAGUE] Nom de lieu seul - préciser ce qui est recherché",vague,easy
 51,"activités enfants","[VAGUE] Question partielle - préciser lieu et période souhaitée",vague,easy
 52,"emploi","[VAGUE] Terme trop large - préciser secteur, lieu, type de contrat recherché",vague,easy
-53,"Quels concerts ont lieu ce soir à Grenoble?","Concerts programmés aujourd'hui à Grenoble (dépend de la date actuelle)",temporal,medium
-54,"Y a-t-il des événements demain en Savoie?","Événements du lendemain en Savoie (dépend de la date actuelle)",temporal,medium
-55,"Que faire pendant les vacances de février en Haute-Savoie?","Activités vacances d'hiver: ski, animations neige, événements montagne",temporal,medium
-56,"Quels événements du Patrimoine 2024 sont encore accessibles?","Événements patrimoine récents ou à venir selon date actuelle",temporal,hard
+53,"Quels ateliers créatifs ont lieu ce weekend à Chambéry?","Ateliers aux Octopodes le samedi 10 février: béret en feutre, création en fil de fer. Dimanche 11: portrait au collodion humide.",temporal,medium
+54,"Y a-t-il un concert ce weekend dans la région?","Concert Country Music and Dance Live à Thonon-les-Bains (Maison des Associations) le samedi 10 février 2024.",temporal,medium
+55,"Que faire demain à Chambéry?","Mercredi 7 février: atelier créatif à l'encre de chine à Chambéry. Aussi: recrutement Feu Vert avec formation assurée.",temporal,medium
+56,"Quelles expositions peut-on visiter en ce moment à Grenoble?","Exposition Ilot trésor à la Maison de l'Architecture de l'Isère (1er février - 29 mars 2024). Aussi: visite guidée à la torche (Pass Culture).",temporal,medium
+57,"Y a-t-il des festivals cet été en Haute-Savoie?","Bluegrass Festival In La Roche (La Roche-sur-Foron, 1-4 août 2024), Samoens American Festival (Samoëns, 27-30 juin 2024), Festival des Musiques du Chablais (Saint-Paul en Chablais, 16 juin 2024).",temporal,medium
+58,"Quels ateliers créatifs sont prévus en mars à Chambéry?","Nombreux ateliers aux Octopodes: encre de chine, création en fil de fer, cyanotype, fleur feutrée, bougie naturelle, béret en feutre, aquarelle, fabrication shampoing solide.",temporal,medium
+59,"Qu'est-ce qui s'est passé la semaine dernière en Savoie?","Le système recommande les événements à venir. Pour la semaine du 29 janvier au 4 février, des ateliers et événements emploi ont eu lieu mais sont désormais passés.",temporal,hard
+60,"Ce soir ou demain, y a-t-il des événements culturels?","Ce soir (6 février): exposition Ilot trésor à Grenoble, rando dégustation à Chamrousse. Demain (7 février): atelier créatif à l'encre de chine à Chambéry.",temporal,hard
+61,"Quels événements ont lieu à Annecy cette semaine?","Semaine du 5-11 février à Annecy: événements emploi (GEIQ InterPro, ateliers aide à domicile, découverte métiers commerce). Aussi: exposition JOUONS LA CARTE DE LA FRATERNITÉ toute l'année.",temporal,medium
+62,"Y a-t-il des randonnées prévues prochainement?","Rando dégustation de produits de terroir à Chamrousse (activité récurrente jusqu'au 9 août 2024).",temporal,easy
+63,"Quels événements culturels ont lieu en Isère en février?","Exposition Ilot trésor à Grenoble (jusqu'au 29 mars), visite guidée à la torche au Pass Culture, rando dégustation à Chamrousse.",temporal,medium
+64,"Y a-t-il quelque chose à faire à Chambéry le weekend prochain?","Weekend du 10-11 février à Chambéry: ateliers créatifs aux Octopodes (béret en feutre, création fil de fer samedi; portrait collodion humide dimanche).",temporal,medium

@@ -4,6 +4,58 @@ Complete changelog documenting the evolution of the RAG Cultural Events Assistan
 
 ---
 
+## v1.2.0 (2026-02-05) - Temporal Awareness
+
+**Status**: ✅ Complete
+**Focus**: Temporal intelligence — date filtering, proximity reranking, query analysis
+
+### 🎯 Key Features
+
+#### ISO Date Metadata (Feature 1)
+- Parse `firstdate_begin` and `lastdate_end` into ISO `event_start_date`, `event_end_date`
+- Add `event_year`, `event_month` convenience fields
+- Graceful handling of missing/malformed dates
+
+#### Reference Date API (Feature 2)
+- `reference_date` parameter on `/api/v1/ask` (ISO YYYY-MM-DD, default `2024-02-06`)
+- Temporal prompt instructions: "Date du jour", past event warning, weekend interpretation
+- `_format_date_french()` for natural French date display in prompts
+
+#### Manual Pipeline (Feature 3)
+- Replace `RetrievalQA` chains with explicit retrieve-then-generate pipeline
+- `top_k` now honestly controls retrieval (was cosmetic before)
+- `fetch_k = top_k * 10` for date filtering headroom
+- `_filter_past_events()` removes events ending before reference_date
+
+#### Enhanced Query Analysis (Feature 4)
+- Advanced method: LLM-based off-topic detection + temporal window extraction
+- `_filter_temporal_window()` with overlap logic and empty-result safeguard
+- Basic/Hybrid unaffected (no extra LLM call)
+
+#### Temporal Proximity Reranking (Feature 5)
+- Exponential decay: `score = 0.5 ^ (|days_away| / 14)`
+- Events closer to target date rank first; no-date events pushed to end
+- All 3 methods benefit (lightweight sort, no LLM call)
+
+#### Temporal Evaluation Questions (Feature 6)
+- 12 data-driven temporal questions (replacing 4 generic ones)
+- Based on real events around reference date 2024-02-06
+- Categories: weekend, demain, ce soir, month, season, past reference, combination
+
+### 📊 Test Coverage
+- **145 tests** (74 indexation + 39 API + 28 retriever + 4 integration/skipped)
+- 62 new tests added across Features 1-5
+
+### 📦 Commits on v1.2.0 branch
+- `feat: add ISO date metadata to event indexing (Feature 1)`
+- `feat: add reference_date parameter and temporal prompt (Feature 2)`
+- `feat: replace RetrievalQA chains with manual retrieve-then-generate pipeline (Feature 3)`
+- `feat: add enhanced query analysis and temporal window filter for advanced method (Feature 4)`
+- `feat: add temporal proximity reranking for all RAG methods (Feature 5)`
+- `feat: add temporal evaluation questions and update docs (Feature 6)`
+
+---
+
 ## v1.1.0 (2026-02-05) - Developer Experience Enhancements
 
 **Status**: ✅ Complete
@@ -327,12 +379,12 @@ Complete changelog documenting the evolution of the RAG Cultural Events Assistan
 
 ## Statistics Summary
 
-### Code Metrics (as of v1.1.0)
-- **Total Tests**: 87 (31 API + 18 indexation + 28 retriever + 10 additional)
+### Code Metrics (as of v1.2.0)
+- **Total Tests**: 145 (74 indexation + 39 API + 28 retriever + 4 integration/skipped)
 - **API Endpoints**: 4 (health, ask, info, rebuild)
 - **RAG Methods**: 3 (basic, hybrid, advanced)
-- **Test Questions**: 56 annotated questions
-- **Events Indexed**: 10,648 cultural events
+- **Test Questions**: 64 annotated questions (12 temporal)
+- **Events Indexed**: ~8,500 cultural events
 - **Docker Image**: 1.45 GB (multi-stage build)
 - **Makefile Commands**: 26
 
@@ -348,7 +400,8 @@ Complete changelog documenting the evolution of the RAG Cultural Events Assistan
 | v0.4.1 | #20 | Hotfix: API-level filtering |
 | v1.0.0 | #21, #23 | README, license, public docs |
 | v1.1.0 | #24 | Developer experience |
-| **Total** | **24 PRs merged** | |
+| v1.2.0 | TBD | Temporal awareness |
+| **Total** | **24+ PRs merged** | |
 
 ### Technology Stack
 - **Language**: Python 3.11+
@@ -366,5 +419,5 @@ Complete changelog documenting the evolution of the RAG Cultural Events Assistan
 
 ---
 
-*Last Updated: 2026-02-05*
+*Last Updated: 2026-02-06*
 *Project: OpenClassrooms - OC7 RAG*

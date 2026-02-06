@@ -1,9 +1,9 @@
 # Temporal Improvements Plan - Puls-Events RAG
 
 **Created**: 2026-02-05
-**Status**: Draft — Awaiting Approval
-**Branch**: To be created from `main` as `v1.2.0` then `feature/temporal-awareness`
-**Estimated Effort**: 2-3 days (6 features, incremental)
+**Status**: ✅ Complete — All 6 features implemented on `v1.2.0` branch
+**Branch**: `v1.2.0` (created from `main`)
+**Effort**: 6 features, 62 new tests, incremental implementation
 
 ---
 
@@ -513,7 +513,9 @@ Events with `event_start_date = None` get `temporal_score = 0` (pushed to bottom
 
 ---
 
-### Feature 6: Integrated Pipeline + Documentation + Temporal Evaluation
+### Feature 6: Integrated Pipeline + Documentation + Temporal Evaluation ✅
+
+**Status**: Complete — 12 data-driven temporal eval questions added. Version bumped to 1.2.0. VERSION_HISTORY.md updated.
 
 **Goal**: Wire all features together end-to-end, update documentation, and add temporal evaluation questions.
 
